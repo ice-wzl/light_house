@@ -53,8 +53,9 @@ message_session = [
 ]
 
 # valid commands for the session context
-session_cmds = WordCompleter(
+cmds_session = WordCompleter(
     [
+        "info",
         "ls",
         "exec",
         "back",
@@ -114,6 +115,43 @@ def get_sessions(token: str, server: str):
         print_formatted_text("[*] Invalid data format")
         return
     
+
+'''
+!session > info
+{'session': '38049b40', 'first_checkin': '2025-05-10T23:56:37.093066+00:00', 'last_checkin': '2025-05-10T23:56:37.093066+00:00', 
+'alive': True, 'callback_freq': 5, 'jitter': 15, 'username': 'kali', 'hostname': 'inkitdev', 'id': 5}
+'''
+def get_session(token: str, server: str, session: str):
+    url = f"http://{server}/implants/{session}"
+    headers = {
+        'accept': 'application/json',
+        'Authorization': f'Bearer {token}',
+    }
+    response = httpx.get(url, headers=headers)
+    if response.status_code == 200:
+        session = response.json()
+        table = PrettyTable()
+        table.field_names = ["Session", "Alive", "Last Seen", "First Seen", "CB Freq(m)", "User", "Hostname"]
+
+        session_id = session.get("session", "Null")
+        status = session.get("alive", "Null")
+        last_seen = session.get("last_checkin", "Null")
+        if last_seen != "Null":
+            last_seen_formatted = fix_date(last_seen)
+        first_seen = session.get("first_checkin", "Null")
+        if first_seen != "Null":
+            first_seen_formatted = fix_date(first_seen)
+        cb_freq = session.get("callback_freq", "Null")
+        user = session.get("username", "Null")
+        hostname = session.get("hostname", "Null")
+        table.add_row([session_id, status, last_seen_formatted,  first_seen_formatted, cb_freq, user, hostname])
+        print_formatted_text(table)
+    elif response.status_code == 404:
+        print_formatted_text("[*] Session id {session} not found!")
+    else: print_formatted_text(response.status_code, response.text, response)
+
+
+
 def delete_implant(token: str, server: str, session: str):
     url = f"http://{server}/implants/delete/{session}"
     headers = {
@@ -158,6 +196,23 @@ def authenticate(username: str, password: str, server: str):
     else: print_formatted_text(response.status_code, response.text, response)
 
 
+def interact_implant(token: str, server: str, session_id: str):
+
+    interact = PromptSession()
+    while True:
+        options = interact.prompt(message=message_session, style=style_session, completer=cmds_session)
+        options = options.lower().strip()
+
+        if options == "info":
+            get_session(token, server, session_id)
+
+        elif options == "back":
+            break
+
+    return
+
+
+
 def driver(username: str, password: str, server: str):
 
     token = authenticate(username, password, server)
@@ -186,7 +241,12 @@ def driver(username: str, password: str, server: str):
                 delete_implant(token, server, session_id)
             else:
                 print_formatted_text("[*] Expecting session id -> delete <session-id>")
-
+        elif options.startswith("interact"):
+            if " " in options:
+                session_id = options.split(" ")[-1]
+                interact_implant(token, server, session_id)
+            else:
+                print_formatted_text("[*] Expecting session id -> interact <session-id>")
 
 
 if __name__ == '__main__':

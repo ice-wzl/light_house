@@ -180,6 +180,14 @@ def read_implants(db: SessionLocal = Depends(get_db), token: str = Security(oaut
     implants = db.query(Implant).all()
     return implants
 
+@app.get("/implants/{session}", response_model=ImplantRead)
+def read_single_implant(session: str, db: SessionLocal = Depends(get_db), token: str = Security(oauth2_scheme)): # type: ignore
+    implant = db.query(Implant).filter(Implant.session == session).first()
+    if implant is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return implant
+
+
 
 # protected endpoint allowing client to delete stale/killed implants
 @app.delete("/implants/delete/{session}", response_model=ImplantDelete)
