@@ -1,4 +1,7 @@
 #!/usr/bin/python3
+import base64
+import binascii
+
 from jose import JWTError, jwt
 from datetime import datetime, timedelta, timezone
 
@@ -98,6 +101,7 @@ class Tasking(Base):
     session = Column(String, ForeignKey('implants.session', ondelete="CASCADE"), nullable=False)
     date = Column(String)
     task = Column(String)
+    args = Column(String)
     complete = Column(Boolean, default=False)
     implant = relationship("Implant", backref="taskings")
 
@@ -105,6 +109,7 @@ class TaskingCreate(BaseModel):
     session: Optional[str] = None
     date: Optional[str] = None
     task: Optional[str] = None
+    args: Optional[str] = None
     complete: Optional[bool] = False
 
 class TaskingRead(TaskingCreate):
@@ -134,19 +139,33 @@ from fastapi import Depends
 
 # endpoint in order to create a task for an implant
 @app.post("/tasking/{session}", response_model=TaskingCreate)
-def create_tasking(session: str, tasking: TaskingCreate, db: SessionLocal = Depends(get_db), token: str = Security(oauth2_scheme)): # type: ignore
+def create_tasking(session: str, tasking: TaskingCreate, db: SessionLocal = Depends(get_db), token: str = Security(oauth2_scheme)):  # type: ignore
     current_time = datetime.now(timezone.utc).isoformat()
-
+    # Check if the session exists
     db_implant = db.query(Implant).filter(Implant.session == session).first()
     if not db_implant:
-        raise HTTPException(status_code=404, detail="Sesion not found")
+        raise HTTPException(status_code=404, detail="Session not found")
 
-    tasking_data = tasking.mode_dump(exclude={"session"})
-    db_task = Tasking(**tasking_data, session=session, date=current_time)
+    # Decode the arguments from base64(hex) if provided
+    if tasking.args:
+        try:
+            args_bytes = bytes.fromhex(tasking.args)
+            decoded_args = base64.b64decode(args_bytes.decode('utf-8')).decode('utf-8')
+        except (binascii.Error, UnicodeDecodeError, ValueError) as e:
+            raise HTTPException(status_code=400, detail=f"Invalid encoded args: {e}")
+    else:
+        decoded_args = ""
+    # Dump model data excluding fields that will be manually set
+    tasking_data = tasking.model_dump(exclude={"session", "complete", "date"})
+    # Override 'args' with decoded version
+    tasking_data["args"] = decoded_args
+    # Create new task
+    db_task = Tasking(**tasking_data, session=session, date=current_time, complete=False)
     db.add(db_task)
     db.commit()
     db.refresh(db_task)
     return db_task
+
 
 @app.get("/tasking/{session}", response_model=List[TaskingRead])
 def read_taskings(session: str, db: SessionLocal = Depends(get_db)): # type: ignore

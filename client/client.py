@@ -3,6 +3,7 @@ import datetime
 import httpx
 import logging
 import sys
+import base64
 
 from prompt_toolkit import PromptSession
 from prompt_toolkit.completion import WordCompleter
@@ -114,13 +115,7 @@ def get_sessions(token: str, server: str):
     else:
         print_formatted_text("[*] Invalid data format")
         return
-    
 
-'''
-!session > info
-{'session': '38049b40', 'first_checkin': '2025-05-10T23:56:37.093066+00:00', 'last_checkin': '2025-05-10T23:56:37.093066+00:00', 
-'alive': True, 'callback_freq': 5, 'jitter': 15, 'username': 'kali', 'hostname': 'inkitdev', 'id': 5}
-'''
 def get_session(token: str, server: str, session: str):
     url = f"http://{server}/implants/{session}"
     headers = {
@@ -196,6 +191,34 @@ def authenticate(username: str, password: str, server: str):
     else: print_formatted_text(response.status_code, response.text, response)
 
 
+def format_args(args: str):
+    based = base64.b64encode(args.encode('utf-8'))
+    return based.hex()
+
+
+def send_task(token: str, server: str, session: str, tasking: str, args: str):
+    argsf = format_args(args)
+    url = f"http://{server}/tasking/{session}"
+    headers = {
+        'accept': 'application/json',
+        'Authorization': f'Bearer {token}',
+        'Content-Type': 'application/json',
+    }
+    data = {
+        'task': f'{tasking}',
+        'args': f'{argsf}',
+    }
+    response = httpx.post(url, headers=headers, json=data)
+    if response.status_code == 200:
+        print_formatted_text(response.json())
+        return
+    elif response.status_code == 404:
+        print_formatted_text(f"[*] Session {session} not found")
+        return
+    else: 
+        print_formatted_text(response.status_code, response.text, response)
+        return
+
 def interact_implant(token: str, server: str, session_id: str):
 
     interact = PromptSession()
@@ -208,9 +231,12 @@ def interact_implant(token: str, server: str, session_id: str):
 
         elif options == "back":
             break
+        elif options.startswith("ls"):
+            if " " in options:
+                directory = options.split(" ")[-1]
+                send_task(token, server, session_id, "ls", directory)
 
     return
-
 
 
 def driver(username: str, password: str, server: str):
