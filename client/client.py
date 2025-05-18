@@ -32,6 +32,7 @@ message_server = [
 completer_server = WordCompleter(
     [
         "sessions",
+        "tasking",
         "delete",
         "interact",
         "quit",
@@ -94,7 +95,7 @@ def format_sessions(sessions: list):
             cb_freq = session.get("callback_freq", "Null")
             user = session.get("username", "Null")
             hostname = session.get("hostname", "Null")
-            table.add_row([session_id, status, last_seen_formatted,  first_seen_formatted, cb_freq, user, hostname])
+            table.add_row([session_id, status, last_seen_formatted, first_seen_formatted, cb_freq, user, hostname])
     print_formatted_text(table)
             
 
@@ -139,7 +140,7 @@ def get_session(token: str, server: str, session: str):
         cb_freq = session.get("callback_freq", "Null")
         user = session.get("username", "Null")
         hostname = session.get("hostname", "Null")
-        table.add_row([session_id, status, last_seen_formatted,  first_seen_formatted, cb_freq, user, hostname])
+        table.add_row([session_id, status, last_seen_formatted, first_seen_formatted, cb_freq, user, hostname])
         print_formatted_text(table)
     elif response.status_code == 404:
         print_formatted_text("[*] Session id {session} not found!")
@@ -210,8 +211,12 @@ def send_task(token: str, server: str, session: str, tasking: str, args: str):
     }
     response = httpx.post(url, headers=headers, json=data)
     if response.status_code == 200:
-        print_formatted_text(response.json())
-        return
+        data = response.json()
+        completed = data.get("complete")
+        returned_session = data.get("session")
+        if session == returned_session and completed == False:
+            print_formatted_text("[*] Tasking successfully recieved")
+            return
     elif response.status_code == 404:
         print_formatted_text(f"[*] Session {session} not found")
         return
@@ -219,8 +224,39 @@ def send_task(token: str, server: str, session: str, tasking: str, args: str):
         print_formatted_text(response.status_code, response.text, response)
         return
 
-def interact_implant(token: str, server: str, session_id: str):
 
+def get_tasking(token: str, session: str, server: str):
+    url = f"http://{server}/tasking/{session}"
+    headers = {
+        'accept': 'application/json',
+        'Authorization': f'Bearer {token}',
+    }
+    response = httpx.get(url, headers=headers)
+    if response.status_code == 200:
+        json_data = response.json()
+        if isinstance(json_data, list):
+            table = PrettyTable()
+            table.field_names = ["ID", "Session", "Date Sent", "Task", "Args", "Complete"]
+            for tasking in json_data:
+                id = tasking.get("id")
+                session_id = tasking.get("session")
+                date_sent = tasking.get("date")
+                if date_sent != "Null":
+                    date_sent_formatted = fix_date(date_sent)
+                task = tasking.get("task")
+                args = tasking.get("args")
+                complete = tasking.get("complete")
+                table.add_row([id, session_id, date_sent_formatted, task, args, complete])
+            print_formatted_text(table)
+        else:
+            print_formatted_text("[*] Unknown data returned")
+            print_formatted_text(json_data)
+    elif response.status_code == 404:
+        print_formatted_text(f"[*] Session id {session} not found!")
+    else: print_formatted_text(response.status_code, response.text, response)
+
+
+def interact_implant(token: str, server: str, session_id: str):
     interact = PromptSession()
     while True:
         options = interact.prompt(message=message_session, style=style_session, completer=cmds_session)
@@ -273,7 +309,12 @@ def driver(username: str, password: str, server: str):
                 interact_implant(token, server, session_id)
             else:
                 print_formatted_text("[*] Expecting session id -> interact <session-id>")
-
+        elif options.startswith("tasking"):
+            if " " in options:
+                session_id = options.split(" ")[-1]
+                get_tasking(token, session_id, server)
+            else:
+                print_formatted_text("[*] Expecting session id -> tasking <session-id>")
 
 if __name__ == '__main__':
     options = argparse.ArgumentParser(description="Client to connect to a server")
