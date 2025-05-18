@@ -82,7 +82,8 @@ def fix_date(raw_date: str):
 def format_sessions(sessions: list):
     if isinstance(sessions, list):
         table = PrettyTable()
-        table.field_names = ["Session", "Alive", "Last Seen", "First Seen", "CB Freq(m)", "User", "Hostname"]
+        table.field_names = ["Session", "Alive", "Last Seen", 
+                             "First Seen", "CB Freq(m)", "User", "Hostname"]
         for session in sessions:
             session_id = session.get("session", "Null")
             status = session.get("alive", "Null")
@@ -95,9 +96,10 @@ def format_sessions(sessions: list):
             cb_freq = session.get("callback_freq", "Null")
             user = session.get("username", "Null")
             hostname = session.get("hostname", "Null")
-            table.add_row([session_id, status, last_seen_formatted, first_seen_formatted, cb_freq, user, hostname])
+            table.add_row([session_id, status, last_seen_formatted, 
+                           first_seen_formatted, cb_freq, user, hostname])
     print_formatted_text(table)
-            
+
 
 def get_sessions(token: str, server: str):
     url = f"http://{server}/implants/"
@@ -127,7 +129,8 @@ def get_session(token: str, server: str, session: str):
     if response.status_code == 200:
         session = response.json()
         table = PrettyTable()
-        table.field_names = ["Session", "Alive", "Last Seen", "First Seen", "CB Freq(m)", "User", "Hostname"]
+        table.field_names = ["Session", "Alive", "Last Seen", 
+                             "First Seen", "CB Freq(m)", "User", "Hostname"]
 
         session_id = session.get("session", "Null")
         status = session.get("alive", "Null")
@@ -140,7 +143,8 @@ def get_session(token: str, server: str, session: str):
         cb_freq = session.get("callback_freq", "Null")
         user = session.get("username", "Null")
         hostname = session.get("hostname", "Null")
-        table.add_row([session_id, status, last_seen_formatted, first_seen_formatted, cb_freq, user, hostname])
+        table.add_row([session_id, status, last_seen_formatted, 
+                       first_seen_formatted, cb_freq, user, hostname])
         print_formatted_text(table)
     elif response.status_code == 404:
         print_formatted_text("[*] Session id {session} not found!")
@@ -236,7 +240,8 @@ def get_tasking(token: str, session: str, server: str):
         json_data = response.json()
         if isinstance(json_data, list):
             table = PrettyTable()
-            table.field_names = ["ID", "Session", "Date Sent", "Task", "Args", "Complete"]
+            table.field_names = ["ID", "Session", "Date Sent", 
+                                 "Task", "Args", "Complete"]
             for tasking in json_data:
                 id = tasking.get("id")
                 session_id = tasking.get("session")
@@ -259,7 +264,8 @@ def get_tasking(token: str, session: str, server: str):
 def interact_implant(token: str, server: str, session_id: str):
     interact = PromptSession()
     while True:
-        options = interact.prompt(message=message_session, style=style_session, completer=cmds_session)
+        options = interact.prompt(message=message_session, 
+                                  style=style_session, completer=cmds_session)
         options = options.lower().strip()
 
         if options == "info":
@@ -284,7 +290,8 @@ def driver(username: str, password: str, server: str):
     print_formatted_text('[+] Enter help <cmd> to view help menu')
 
     while True:
-        options = session.prompt(message=message_server, style=style_server, completer=completer_server)
+        options = session.prompt(message=message_server, 
+                                 style=style_server, completer=completer_server)
         options = options.lower().strip()
 
         # get all active sessions
@@ -296,7 +303,8 @@ def driver(username: str, password: str, server: str):
         elif options.startswith("delete"):
             # going to delete a session 
             # if alive is false just kill it immediately
-            # if alive is true prompt user to be sure before removing from db...will really mess things up if we remove
+            # if alive is true prompt user to be sure before removing from db...
+            # will really mess things up if we remove
             # alive implant that is phoning home 
             if " " in options:
                 session_id = options.split(" ")[-1]
