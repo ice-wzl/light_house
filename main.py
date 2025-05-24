@@ -102,7 +102,7 @@ class Tasking(Base):
     date = Column(String)
     task = Column(String)
     args = Column(String)
-    complete = Column(Boolean, default=False)
+    complete = Column(String, default="False")
     implant = relationship("Implant", backref="taskings")
 
 class TaskingCreate(BaseModel):
@@ -110,7 +110,7 @@ class TaskingCreate(BaseModel):
     date: Optional[str] = None
     task: Optional[str] = None
     args: Optional[str] = None
-    complete: Optional[bool] = False
+    complete: Optional[str] = "False"
 
 class TaskingRead(TaskingCreate):
     id: int
@@ -160,7 +160,7 @@ def create_tasking(session: str, tasking: TaskingCreate, db: SessionLocal = Depe
     # Override 'args' with decoded version
     tasking_data["args"] = decoded_args
     # Create new task
-    db_task = Tasking(**tasking_data, session=session, date=current_time, complete=False)
+    db_task = Tasking(**tasking_data, session=session, date=current_time, complete="False")
     db.add(db_task)
     db.commit()
     db.refresh(db_task)
@@ -173,7 +173,7 @@ def read_taskings(session: str, db: SessionLocal = Depends(get_db)): # type: ign
     if not db_implant:
         raise HTTPException(status_code=404, detail="Session not found")
     
-    tasking = db.query(Tasking).filter(Tasking.session == session, Tasking.complete == False).all()
+    tasking = db.query(Tasking).filter(Tasking.session == session, Tasking.complete.in_(["False", "Pending", "True"])).all()
     return tasking
 
 # delete tasking
@@ -240,10 +240,28 @@ def check_in(session: str, db: SessionLocal = Depends(get_db)): # type: ignore
     db.commit()
     db.refresh(db_implant)
 
-    pending_tasks = db.query(Tasking).filter(Tasking.session == session, Tasking.complete == False).all()
+    pending_tasks = db.query(Tasking).filter(Tasking.session == session, Tasking.complete == "False").all()
 
     if pending_tasks:
-        return RedirectResponse(f"/tasks/{session}/", status_code=301)
+        return RedirectResponse(f"/tasks/{session}", status_code=301)
 
     # no pending tasks all completed=True
     return db_implant
+
+@app.get("/tasks/{session}", response_model=List[TaskingRead])
+def get_tasks(session: str, db: SessionLocal = Depends(get_db)):    # type: ignore
+    db_implant = db.query(Implant).filter(Implant.session == session).first()
+    if db_implant is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    tasking = db.query(Tasking).filter(Tasking.session == session, Tasking.complete.in_(["False", "Pending"])).all()
+    if not tasking:
+        raise HTTPException(status_code=404, detail="No tasks found for this session")
+    # Mark tasks as pending
+    for task in tasking:
+        # implant picked it up for action
+        task.complete = "Pending"
+        db.commit()
+        db.refresh(task)
+
+    return tasking

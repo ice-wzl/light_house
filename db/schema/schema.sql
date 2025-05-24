@@ -18,7 +18,7 @@ CREATE TABLE tasking (
     date TEXT,
     task TEXT,
     args TEXT,
-    complete BOOLEAN,
+    complete Text, -- True/False/Pending
     FOREIGN KEY (session) REFERENCES implants(session) ON DELETE CASCADE
 );
 

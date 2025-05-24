@@ -82,7 +82,7 @@ def fix_date(raw_date: str):
 def format_sessions(sessions: list):
     if isinstance(sessions, list):
         table = PrettyTable()
-        table.field_names = ["Session", "Alive", "Last Seen", 
+        table.field_names = ["Session", "Alive", "Last Seen",
                              "First Seen", "CB Freq(m)", "User", "Hostname"]
         for session in sessions:
             session_id = session.get("session", "Null")
@@ -96,7 +96,7 @@ def format_sessions(sessions: list):
             cb_freq = session.get("callback_freq", "Null")
             user = session.get("username", "Null")
             hostname = session.get("hostname", "Null")
-            table.add_row([session_id, status, last_seen_formatted, 
+            table.add_row([session_id, status, last_seen_formatted,
                            first_seen_formatted, cb_freq, user, hostname])
     print_formatted_text(table)
 
@@ -129,7 +129,7 @@ def get_session(token: str, server: str, session: str):
     if response.status_code == 200:
         session = response.json()
         table = PrettyTable()
-        table.field_names = ["Session", "Alive", "Last Seen", 
+        table.field_names = ["Session", "Alive", "Last Seen",
                              "First Seen", "CB Freq(m)", "User", "Hostname"]
 
         session_id = session.get("session", "Null")
@@ -143,7 +143,7 @@ def get_session(token: str, server: str, session: str):
         cb_freq = session.get("callback_freq", "Null")
         user = session.get("username", "Null")
         hostname = session.get("hostname", "Null")
-        table.add_row([session_id, status, last_seen_formatted, 
+        table.add_row([session_id, status, last_seen_formatted,
                        first_seen_formatted, cb_freq, user, hostname])
         print_formatted_text(table)
     elif response.status_code == 404:
@@ -183,7 +183,7 @@ def authenticate(username: str, password: str, server: str):
         'client_id': 'string',
         'client_secret': 'string'
     }
-    
+
     response = httpx.post(url, headers=headers, data=data)
 
     if response.status_code == 200:
@@ -218,13 +218,13 @@ def send_task(token: str, server: str, session: str, tasking: str, args: str):
         data = response.json()
         completed = data.get("complete")
         returned_session = data.get("session")
-        if session == returned_session and completed == False:
+        if session == returned_session and completed == "False":
             print_formatted_text("[*] Tasking successfully recieved")
             return
     elif response.status_code == 404:
         print_formatted_text(f"[*] Session {session} not found")
         return
-    else: 
+    else:
         print_formatted_text(response.status_code, response.text, response)
         return
 
@@ -240,7 +240,7 @@ def get_tasking(token: str, session: str, server: str):
         json_data = response.json()
         if isinstance(json_data, list):
             table = PrettyTable()
-            table.field_names = ["ID", "Session", "Date Sent", 
+            table.field_names = ["ID", "Session", "Date Sent",
                                  "Task", "Args", "Complete"]
             for tasking in json_data:
                 id = tasking.get("id")
