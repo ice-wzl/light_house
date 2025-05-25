@@ -24,11 +24,15 @@ CREATE TABLE tasking (
 
 CREATE TABLE results (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tasking_id INTEGER NOT NULL,
     session TEXT NOT NULL,
     date TEXT,
     task TEXT,
+    args TEXT,
     results TEXT,
-    FOREIGN KEY (session) REFERENCES implants(session) ON DELETE CASCADE
+    FOREIGN KEY (session) REFERENCES implants(session) ON DELETE CASCADE,
+    FOREIGN KEY (tasking_id) REFERENCES tasking(id) ON DELETE CASCADE
 );
+
 
 
