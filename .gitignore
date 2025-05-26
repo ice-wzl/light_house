@@ -6,4 +6,6 @@ server/server_helper/__pycache__/*
 client/client_helper/__pycache__/*
 client/client_helper/__pycache__/session_manager.cpython-313.pyc
 agent/agent
-
+client/client_helper/__pycache__/session_manager.cpython-313.pyc
+client/client_helper/__pycache__/tasking_manager.cpython-313.pyc
+client/client_helper/__pycache__/user_manager.cpython-313.pyc

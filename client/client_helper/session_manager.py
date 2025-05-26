@@ -36,7 +36,8 @@ cmds_session = WordCompleter(
     [
         "info",
         "ls",
-        "exec",
+        "exec_fg",
+        "exec_bg",
         "back",
         "upload",
         "ps",
@@ -179,26 +180,6 @@ def get_session(token: str, server: str, session: str):
     return response.status_code
 
 
-def delete_implant(token: str, server: str, session: str):
-    url = f"http://{server}/implants/delete/{session}"
-    headers = {
-        'accept': 'application/json',
-        'Authorization': f'Bearer {token}',
-    }
-    response = httpx.delete(url, headers=headers)
-    if response.status_code == 200:
-        json_data = response.json()
-        session_id = json_data.get("session")
-        if session_id == session:
-            print_formatted_text(f"[*] Session id {session} deleted")
-    elif response.status_code == 401 and response.json().get("detail") == "Bad Credentials":
-        print_formatted_text("[*] Invalid token...time to reauthenticate")
-        return
-    elif response.status_code == 404:
-        print_formatted_text(f"[*] Session id {session} not found!")
-    else: print_formatted_text(response.status_code, response.text, response)
-
-
 def interact_implant(token: str, server: str, session_id: str):
     interact = PromptSession()
     while True:
@@ -235,6 +216,16 @@ def session_router(cmd: str, args: list, token: str, server: str, session_id: st
         get_tasking(token, session_id, server)
     elif cmd == "ps":
         send_task(token, server, session_id, "ps", "")
+    elif cmd == "exec_fg":
+        if len(args) == 1:
+            send_task(token, server, session_id, "exec_fg", args[0])
+        else:
+            print_formatted_text("[*] Expecting command -> exec_fg '<command>'")
+    elif cmd == "exec_bg":
+        if len(args) == 1:
+            send_task(token, server, session_id, "exec_bg", args[0])
+        else:
+            print_formatted_text("[*] Expecting command -> exec_bg '<command>'")
     elif cmd == "view":
         if len(args) == 1:
             get_result(token, server, session_id, int(args[0]))

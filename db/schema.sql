@@ -39,7 +39,7 @@ CREATE TABLE users (
     username TEXT UNIQUE NOT NULL,
     password TEXT NOT NULL,
     created_at TEXT NOT NULL
-)
+);
 
-
-
+-- - Add default user to users table
+INSERT INTO users (username, password, created_at) VALUES ('admin', 'password', datetime('now'));

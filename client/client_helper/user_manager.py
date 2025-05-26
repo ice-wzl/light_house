@@ -136,7 +136,7 @@ def authenticate(username: str, password: str, server: str):
         response_data = response.json()
         token = response_data['access_token']
         return token
-    elif response.status_code == 400:
+    elif response.status_code == 401:
         print_formatted_text("[*] Invalid credentials")
         sys.exit(1)
     else: print_formatted_text(response.status_code, response.text, response)
