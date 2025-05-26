@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 import httpx
+import shlex
 
 from prettytable import PrettyTable
 
@@ -150,18 +151,31 @@ def interact_implant(token: str, server: str, session_id: str):
         options = interact.prompt(message=message_session, 
                                   style=style_session, completer=cmds_session)
         options = options.lower().strip()
+        try:
+            parsed = shlex.split(options)
+        except ValueError as e:
+            print_formatted_text(f"[*] Input parsing error: {e}")
+            continue
 
-        if options == "info":
+        if not parsed:
+            continue
+
+        cmd = parsed[0].lower()
+        args = parsed[1:]
+
+        if cmd == "back":
+             return
+
+        session_router(cmd, args, token, server, session_id)
+        
+
+def session_router(cmd: str, args: list, token: str, server: str, session_id: str):
+    if cmd == "info":
             get_session(token, server, session_id)
-
-        elif options == "back":
-            break
-        elif options.startswith("ls"):
-            if " " in options:
-                directory = options.split(" ")[-1]
-                send_task(token, server, session_id, "ls", directory)
-        elif options == "tasking":
-            get_tasking(token, session_id, server)
-        elif options == "ps":
-            send_task(token, server, session_id, "ps", "")
-    return
+    elif cmd == "ls":
+        if len(args) == 1:
+            send_task(token, server, session_id, "ls", args[0])
+    elif cmd == "tasking":
+        get_tasking(token, session_id, server)
+    elif cmd == "ps":
+        send_task(token, server, session_id, "ps", "")

@@ -11,8 +11,6 @@ from fastapi.security import OAuth2PasswordRequestForm
 from fastapi import Depends, FastAPI, HTTPException, status, Security
 from fastapi.responses import RedirectResponse
 
-from sqlalchemy.orm import relationship
-
 # local imports
 from server_helper.auth_helper import Token, oauth2_scheme
 from server_helper.auth_helper import SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES

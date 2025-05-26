@@ -122,9 +122,6 @@ def driver(username: str, password: str, server: str):
         args = parsed[1:]
         command_router(cmd, args, token, server)
 
-        
-
-
 
 
 if __name__ == '__main__':
