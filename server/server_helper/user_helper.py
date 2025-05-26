@@ -1,10 +1,11 @@
-#!/usr/bin/python3 
+#!/usr/bin/python3
 from datetime import datetime, timezone
 from pydantic import BaseModel
 from sqlalchemy import Column, Integer, String
 
 # local imports
 from server_helper.db import Base
+
 
 class Users(Base):
     __tablename__ = "users"
@@ -13,10 +14,12 @@ class Users(Base):
     password = Column(String, nullable=False)
     created_at = Column(String, default=datetime.now(timezone.utc).isoformat())
 
+
 class UserCreate(BaseModel):
     username: str
     password: str
     created_at: str = datetime.now(timezone.utc).isoformat()
+
 
 class UserRead(UserCreate):
     id: int
@@ -24,7 +27,6 @@ class UserRead(UserCreate):
     class Config:
         form_attributes = True
 
+
 class UserDelete(BaseModel):
     id: int
-
-
