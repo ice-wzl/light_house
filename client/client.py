@@ -104,7 +104,6 @@ def driver(username: str, password: str, server: str):
 
     session = PromptSession()
     print_formatted_text("[+] Enter commands to see available commands")
-    print_formatted_text('[+] Enter help <cmd> to view help menu')
 
     while True:
         options = session.prompt(message=message_server, 
