@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 import httpx
 import shlex
-import base64 
+import base64
 import binascii
 
 from prettytable import PrettyTable
@@ -15,7 +15,6 @@ from prompt_toolkit import print_formatted_text
 from client_helper.user_manager import fix_date
 from client_helper.tasking_manager import get_tasking, send_task
 
-
 # colors for the sessions prompt
 style_session = Style.from_dict(
     {
@@ -26,10 +25,7 @@ style_session = Style.from_dict(
 )
 
 # the prompty layout and design for the session context
-message_session = [
-    ("class:host", "!session"),
-    ("class:arrow", " > ")
-]
+message_session = [("class:host", "!session"), ("class:arrow", " > ")]
 
 # valid commands for the session context
 cmds_session = WordCompleter(
@@ -47,10 +43,11 @@ cmds_session = WordCompleter(
     ]
 )
 
+
 def format_output(output: str):
     try:
         decoded_bytes = bytes.fromhex(output)
-        decoded_base = base64.b64decode(decoded_bytes.decode('utf-8')).decode('utf-8')
+        decoded_base = base64.b64decode(decoded_bytes.decode("utf-8")).decode("utf-8")
         return decoded_base
     except (binascii.Error, UnicodeDecodeError, ValueError) as e:
         print_formatted_text(f"[*] Error decoding output: {e}")
@@ -59,16 +56,19 @@ def format_output(output: str):
 def get_result(token: str, server: str, session: str, id: int):
     url = f"http://{server}/results/{session}/{id}"
     headers = {
-        'accept': 'application/json',
-        'Authorization': f'Bearer {token}',
+        "accept": "application/json",
+        "Authorization": f"Bearer {token}",
     }
-    
+
     response = httpx.get(url, headers=headers)
     if response.status_code == 404:
         print_formatted_text(f"[*] Session id {session} not found!")
     elif response.status_code == 416:
         print_formatted_text(f"[*] ID {id} not found for session {session}")
-    elif response.status_code == 401 and response.json().get("detail") == "Bad Credentials":
+    elif (
+        response.status_code == 401
+        and response.json().get("detail") == "Bad Credentials"
+    ):
         print_formatted_text("[*] Invalid token...time to reauthenticate")
         return
     elif response.status_code == 200:
@@ -92,11 +92,19 @@ def get_result(token: str, server: str, session: str, id: int):
         print_formatted_text(response.status_code, response.text, response)
         return
 
+
 def format_sessions(sessions: list):
     if isinstance(sessions, list):
         table = PrettyTable()
-        table.field_names = ["Session", "Alive", "Last Seen",
-                             "First Seen", "CB Freq(m)", "User", "Hostname"]
+        table.field_names = [
+            "Session",
+            "Alive",
+            "Last Seen",
+            "First Seen",
+            "CB Freq(m)",
+            "User",
+            "Hostname",
+        ]
         for session in sessions:
             session_id = session.get("session", "Null")
             status = session.get("alive", "Null")
@@ -109,19 +117,31 @@ def format_sessions(sessions: list):
             cb_freq = session.get("callback_freq", "Null")
             user = session.get("username", "Null")
             hostname = session.get("hostname", "Null")
-            table.add_row([session_id, status, last_seen_formatted,
-                           first_seen_formatted, cb_freq, user, hostname])
+            table.add_row(
+                [
+                    session_id,
+                    status,
+                    last_seen_formatted,
+                    first_seen_formatted,
+                    cb_freq,
+                    user,
+                    hostname,
+                ]
+            )
     print_formatted_text(table)
 
 
 def get_sessions(token: str, server: str):
     url = f"http://{server}/implants/"
     headers = {
-        'accept': 'application/json',
-        'Authorization': f'Bearer {token}',
+        "accept": "application/json",
+        "Authorization": f"Bearer {token}",
     }
     response = httpx.get(url, headers=headers)
-    if response.status_code == 401 and response.json().get("detail") == "Bad Credentials":
+    if (
+        response.status_code == 401
+        and response.json().get("detail") == "Bad Credentials"
+    ):
         print_formatted_text("[*] Invalid token...time to reauthenticate")
         return
     elif response.status_code == 200 and isinstance(response.json(), list):
@@ -132,12 +152,12 @@ def get_sessions(token: str, server: str):
         print_formatted_text(response.status_code, response.text, response)
         return
 
-    
+
 def test_session(token: str, server: str, session: str):
     url = f"http://{server}/implants/{session}"
     headers = {
-        'accept': 'application/json',
-        'Authorization': f'Bearer {token}',
+        "accept": "application/json",
+        "Authorization": f"Bearer {token}",
     }
     response = httpx.get(url, headers=headers)
     return response.status_code
@@ -146,15 +166,22 @@ def test_session(token: str, server: str, session: str):
 def get_session(token: str, server: str, session: str):
     url = f"http://{server}/implants/{session}"
     headers = {
-        'accept': 'application/json',
-        'Authorization': f'Bearer {token}',
+        "accept": "application/json",
+        "Authorization": f"Bearer {token}",
     }
     response = httpx.get(url, headers=headers)
     if response.status_code == 200:
         session = response.json()
         table = PrettyTable()
-        table.field_names = ["Session", "Alive", "Last Seen",
-                             "First Seen", "CB Freq(m)", "User", "Hostname"]
+        table.field_names = [
+            "Session",
+            "Alive",
+            "Last Seen",
+            "First Seen",
+            "CB Freq(m)",
+            "User",
+            "Hostname",
+        ]
 
         session_id = session.get("session", "Null")
         status = session.get("alive", "Null")
@@ -167,15 +194,27 @@ def get_session(token: str, server: str, session: str):
         cb_freq = session.get("callback_freq", "Null")
         user = session.get("username", "Null")
         hostname = session.get("hostname", "Null")
-        table.add_row([session_id, status, last_seen_formatted,
-                       first_seen_formatted, cb_freq, user, hostname])
+        table.add_row(
+            [
+                session_id,
+                status,
+                last_seen_formatted,
+                first_seen_formatted,
+                cb_freq,
+                user,
+                hostname,
+            ]
+        )
         print_formatted_text(table)
     elif response.status_code == 404:
         print_formatted_text(f"[*] Session id {session} not found!")
-    elif response.status_code == 401 and response.json().get("detail") == "Bad Credentials":
+    elif (
+        response.status_code == 401
+        and response.json().get("detail") == "Bad Credentials"
+    ):
         print_formatted_text("[*] Invalid token...time to reauthenticate")
         return
-    else: 
+    else:
         print_formatted_text(response.status_code, response.text, response)
     return response.status_code
 
@@ -183,8 +222,9 @@ def get_session(token: str, server: str, session: str):
 def interact_implant(token: str, server: str, session_id: str):
     interact = PromptSession()
     while True:
-        options = interact.prompt(message=message_session, 
-                                  style=style_session, completer=cmds_session)
+        options = interact.prompt(
+            message=message_session, style=style_session, completer=cmds_session
+        )
         options = options.lower().strip()
         try:
             parsed = shlex.split(options)
@@ -199,14 +239,14 @@ def interact_implant(token: str, server: str, session_id: str):
         args = parsed[1:]
 
         if cmd == "back":
-             return
+            return
 
         session_router(cmd, args, token, server, session_id)
-        
+
 
 def session_router(cmd: str, args: list, token: str, server: str, session_id: str):
     if cmd == "info":
-            get_session(token, server, session_id)
+        get_session(token, server, session_id)
     elif cmd == "ls":
         if len(args) == 1:
             send_task(token, server, session_id, "ls", args[0])

@@ -1,4 +1,4 @@
-#!/user/bin/python3 
+#!/user/bin/python3
 import httpx
 import sys
 import datetime
@@ -18,36 +18,39 @@ def fix_date(raw_date: str):
             fd = "Invalid Date"
             return fd
 
+
 def user_add(token: str, server: str, username: str, password: str):
     url = f"http://{server}/users/create"
     headers = {
-        'accept': 'application/json',
-        'Authorization': f'Bearer {token}',
+        "accept": "application/json",
+        "Authorization": f"Bearer {token}",
     }
     data = {
-        'username': username,
-        'password': password,
+        "username": username,
+        "password": password,
     }
     response = httpx.post(url, headers=headers, json=data)
     if response.status_code == 400:
         print_formatted_text("[*] Username already exists")
     elif response.status_code == 200:
         print_formatted_text("[*] User created successfully")
-    else:    
-        print_formatted_text(response.json(), response.status_code, response.text, response)
+    else:
+        print_formatted_text(
+            response.json(), response.status_code, response.text, response
+        )
 
 
-def user_delete(token:str, server: str, user_id: int):
+def user_delete(token: str, server: str, user_id: int):
     url = f"http://{server}/users/delete/{user_id}"
     headers = {
-        'accept': 'application/json',
-        'Authorization': f'Bearer {token}',
+        "accept": "application/json",
+        "Authorization": f"Bearer {token}",
     }
     response = httpx.delete(url, headers=headers)
     if response.status_code == 404:
         print_formatted_text(f"[*] User id {user_id} not found!")
     elif response.status_code == 200:
-            print_formatted_text(f"[*] User id {user_id} deleted") 
+        print_formatted_text(f"[*] User id {user_id} deleted")
     else:
         print_formatted_text(response.status_code, response.text, response)
 
@@ -55,14 +58,17 @@ def user_delete(token:str, server: str, user_id: int):
 def get_users(token: str, server: str):
     url = f"http://{server}/users"
     headers = {
-        'accept': 'application/json',
-        'Authorization': f'Bearer {token}',
+        "accept": "application/json",
+        "Authorization": f"Bearer {token}",
     }
     response = httpx.get(url, headers=headers)
     if response.status_code != 200:
         print_formatted_text("[*] Error fetching users")
         print_formatted_text(response.status_code, response.text, response)
-    elif response.status_code == 401 and response.json().get("detail") == "Bad Credentials":
+    elif (
+        response.status_code == 401
+        and response.json().get("detail") == "Bad Credentials"
+    ):
         print_formatted_text("[*] Invalid token...time to reauthenticate")
         return
     else:
@@ -84,13 +90,13 @@ def get_users(token: str, server: str):
             print_formatted_text("[*] Invalid data format")
             print_formatted_text(response.json())
             return
-        
 
-def get_user(token: str, server:str, id: int):
+
+def get_user(token: str, server: str, id: int):
     url = f"http://{server}/users/{id}"
     headers = {
-        'accept': 'application/json',
-        'Authorization': f'Bearer {token}',
+        "accept": "application/json",
+        "Authorization": f"Bearer {token}",
     }
     response = httpx.get(url, headers=headers)
     if response.status_code == 200:
@@ -107,36 +113,41 @@ def get_user(token: str, server:str, id: int):
             created_at_formatted = "Null"
         table.add_row([id, username, password, created_at_formatted])
         print_formatted_text(table)
-    elif response.status_code == 401 and response.json().get("detail") == "Bad Credentials":
+    elif (
+        response.status_code == 401
+        and response.json().get("detail") == "Bad Credentials"
+    ):
         print_formatted_text("[*] Invalid token...time to reauthenticate")
         return
     elif response.status_code == 404:
         print_formatted_text(f"[*] User id {id} not found!")
-    else: print_formatted_text(response.status_code, response.text, response)
+    else:
+        print_formatted_text(response.status_code, response.text, response)
 
 
 def authenticate(username: str, password: str, server: str):
     url = f"http://{server}/token/"
     headers = {
-        'accept': 'application/json',
-        'Content-Type': 'application/x-www-form-urlencoded',
+        "accept": "application/json",
+        "Content-Type": "application/x-www-form-urlencoded",
     }
     data = {
-        'grant_type': 'password',
-        'username': f'{username}',
-        'password': f'{password}',
-        'scope': '',
-        'client_id': 'string',
-        'client_secret': 'string'
+        "grant_type": "password",
+        "username": f"{username}",
+        "password": f"{password}",
+        "scope": "",
+        "client_id": "string",
+        "client_secret": "string",
     }
 
     response = httpx.post(url, headers=headers, data=data)
 
     if response.status_code == 200:
         response_data = response.json()
-        token = response_data['access_token']
+        token = response_data["access_token"]
         return token
     elif response.status_code == 401:
         print_formatted_text("[*] Invalid credentials")
         sys.exit(1)
-    else: print_formatted_text(response.status_code, response.text, response)
+    else:
+        print_formatted_text(response.status_code, response.text, response)

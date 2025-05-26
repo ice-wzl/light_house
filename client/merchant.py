@@ -10,10 +10,15 @@ from prompt_toolkit.styles import Style
 from prompt_toolkit import print_formatted_text
 
 # local imports
-from client_helper.user_manager import user_add, user_delete, get_users, get_user, authenticate
+from client_helper.user_manager import (
+    user_add,
+    user_delete,
+    get_users,
+    get_user,
+    authenticate,
+)
 from client_helper.session_manager import get_sessions, test_session, interact_implant
 from client_helper.tasking_manager import get_tasking
-
 
 log_format = "%(asctime)s - %(message)s"
 logging.basicConfig(format=log_format, stream=sys.stdout, level=logging.ERROR)
@@ -61,7 +66,9 @@ def command_router(cmd: str, args: list, token: str, server: str):
         if len(args) == 2:
             user_add(token, server, args[0], args[1])
         else:
-            print_formatted_text("[*] Expecting username and password -> user_add <username> <password>")
+            print_formatted_text(
+                "[*] Expecting username and password -> user_add <username> <password>"
+            )
 
     elif cmd == "user_delete":
         if len(args) == 1:
@@ -102,8 +109,9 @@ def driver(username: str, password: str, server: str):
     print_formatted_text("[+] Enter commands to see available commands")
 
     while True:
-        options = session.prompt(message=message_server, 
-                                 style=style_server, completer=completer_server)
+        options = session.prompt(
+            message=message_server, style=style_server, completer=completer_server
+        )
 
         try:
             parsed = shlex.split(options)
@@ -119,14 +127,32 @@ def driver(username: str, password: str, server: str):
         command_router(cmd, args, token, server)
 
 
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     options = argparse.ArgumentParser(description="Client to connect to a server")
-    options.add_argument("-u", "--username", default=str, required=True, help="The username to authenticate with", dest="username")
-    options.add_argument("-p", "--password", default=str, required=True, help="The password to authenticate with", dest="password")
-    options.add_argument("-s", "--server", default=str, required=True, help="The listening post address", dest="server")
+    options.add_argument(
+        "-u",
+        "--username",
+        default=str,
+        required=True,
+        help="The username to authenticate with",
+        dest="username",
+    )
+    options.add_argument(
+        "-p",
+        "--password",
+        default=str,
+        required=True,
+        help="The password to authenticate with",
+        dest="password",
+    )
+    options.add_argument(
+        "-s",
+        "--server",
+        default=str,
+        required=True,
+        help="The listening post address",
+        dest="server",
+    )
     args = options.parse_args()
 
     driver(args.username, args.password, args.server)
-
-    
