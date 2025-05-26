@@ -6,7 +6,12 @@ from prompt_toolkit import print_formatted_text
 from prettytable import PrettyTable
 
 
-def fix_date(raw_date: str):
+def fix_date(raw_date: str) -> str:
+    '''
+    Fixes the date format from the sqlite database to a consistent format
+    :param raw_date: The date string from the database
+    :return: A formatted date string in 'YYYY-MM-DD HH:MM:SS' format or "Invalid Date" if parsing fails
+    '''
     if isinstance(raw_date, str):
         try:
             # Convert the string to a datetime object
@@ -19,7 +24,15 @@ def fix_date(raw_date: str):
             return fd
 
 
-def user_add(token: str, server: str, username: str, password: str):
+def user_add(token: str, server: str, username: str, password: str) -> None:
+    '''
+    Adds a new user to the lighthouse database
+    :param token: The authentication token for the lighthouse server
+    :param server: The lighthouse server address
+    :param username: The username for the new user
+    :param password: The password for the new user
+    :return: None
+    '''
     url = f"http://{server}/users/create"
     headers = {
         "accept": "application/json",
@@ -40,7 +53,14 @@ def user_add(token: str, server: str, username: str, password: str):
         )
 
 
-def user_delete(token: str, server: str, user_id: int):
+def user_delete(token: str, server: str, user_id: int) -> None:
+    '''
+    Deletes a user from the lighthouse database by ID
+    :param token: The authentication token for the lighthouse server
+    :param server: The lighthouse server address
+    :param user_id: The ID of the user to delete
+    :return: None
+    '''
     url = f"http://{server}/users/delete/{user_id}"
     headers = {
         "accept": "application/json",
@@ -55,7 +75,13 @@ def user_delete(token: str, server: str, user_id: int):
         print_formatted_text(response.status_code, response.text, response)
 
 
-def get_users(token: str, server: str):
+def get_users(token: str, server: str) -> None:
+    '''
+    Fetches all users from the lighthouse database
+    :param token: The authentication token for the lighthouse server
+    :param server: The lighthouse server address
+    :return: None
+    '''
     url = f"http://{server}/users"
     headers = {
         "accept": "application/json",
@@ -70,7 +96,6 @@ def get_users(token: str, server: str):
         and response.json().get("detail") == "Bad Credentials"
     ):
         print_formatted_text("[*] Invalid token...time to reauthenticate")
-        return
     else:
         if isinstance(response.json(), list):
             table = PrettyTable()
@@ -89,10 +114,16 @@ def get_users(token: str, server: str):
         else:
             print_formatted_text("[*] Invalid data format")
             print_formatted_text(response.json())
-            return
 
 
-def get_user(token: str, server: str, id: int):
+def get_user(token: str, server: str, id: int) -> None:
+    '''
+    Get details of a specific user by ID from the lighthouse database
+    :param token: The authentication token for the lighthouse server
+    :param server: The lighthouse server address
+    :param id: The ID of the user to retrieve
+    :return: None
+    '''
     url = f"http://{server}/users/{id}"
     headers = {
         "accept": "application/json",
@@ -125,7 +156,14 @@ def get_user(token: str, server: str, id: int):
         print_formatted_text(response.status_code, response.text, response)
 
 
-def authenticate(username: str, password: str, server: str):
+def authenticate(username: str, password: str, server: str) -> str:
+    '''
+    Authenticate the user and retrieve an access token from the lighthouse server
+    :param username: The username to authenticate with
+    :param password: The password to authenticate with
+    :param server: The lighthouse server address
+    :return: The access token if authentication is successful, otherwise exits the program
+    '''
     url = f"http://{server}/token/"
     headers = {
         "accept": "application/json",
@@ -151,3 +189,4 @@ def authenticate(username: str, password: str, server: str):
         sys.exit(1)
     else:
         print_formatted_text(response.status_code, response.text, response)
+        return ""

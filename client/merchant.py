@@ -20,6 +20,7 @@ from client_helper.user_manager import (
 from client_helper.session_manager import get_sessions, test_session, interact_implant
 from client_helper.tasking_manager import get_tasking
 
+# currently not using this logger, keeping for future use
 log_format = "%(asctime)s - %(message)s"
 logging.basicConfig(format=log_format, stream=sys.stdout, level=logging.ERROR)
 logger = logging.getLogger()
@@ -51,7 +52,15 @@ completer_server = WordCompleter(
 )
 
 
-def command_router(cmd: str, args: list, token: str, server: str):
+def command_router(cmd: str, args: list, token: str, server: str) -> None:
+    '''
+    Routes commands to their respective handlers based on the command name
+    :param cmd: The command to execute
+    :param args: The arguments for the command
+    :param token: The authentication token
+    :param server: The lighthouse server address
+    :return: None
+    '''
     if cmd == "sessions":
         get_sessions(token, server)
 
@@ -103,6 +112,13 @@ def command_router(cmd: str, args: list, token: str, server: str):
 
 
 def driver(username: str, password: str, server: str):
+    '''
+    Main driver to handle the user input and pass to the command router
+    :param username: The username to authenticate to lighthouse with 
+    :param password: The password to authenticate to lighthouse with 
+    :param server: The lighthouse server address
+    :return: None
+    '''
     token = authenticate(username, password, server)
 
     session = PromptSession()

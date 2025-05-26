@@ -6,12 +6,27 @@ from prettytable import PrettyTable
 from client_helper.user_manager import fix_date
 
 
-def format_args(args: str):
+def format_args(args: str) -> str:
+    '''
+    Base64 encodes the arguments and converts them to a hex string. 
+    This is to ensure no special characters break the tasking.
+    :param args: The arguments to be formatted
+    :return: A hex string representation of the base64 encoded arguments
+    '''
     based = base64.b64encode(args.encode("utf-8"))
     return based.hex()
 
 
-def send_task(token: str, server: str, session: str, tasking: str, args: str):
+def send_task(token: str, server: str, session: str, tasking: str, args: str) -> None:
+    '''
+    Sends a task to the lighthouse server for a specific session.
+    :param token: The authentication token for the lighthouse server
+    :param server: The lighthouse server address
+    :param session: The session ID to which the task is sent
+    :param tasking: The task to be sent
+    :param args: The arguments for the task
+    :return: None
+    '''
     argsf = format_args(args)
     url = f"http://{server}/tasking/{session}"
     headers = {
@@ -45,7 +60,14 @@ def send_task(token: str, server: str, session: str, tasking: str, args: str):
         return
 
 
-def get_tasking(token: str, session: str, server: str):
+def get_tasking(token: str, session: str, server: str) -> None:
+    '''
+    Retrieves tasking for a specific session from the lighthouse server.
+    :param token: The authentication token for the lighthouse server
+    :param session: The session ID for which to retrieve tasking
+    :param server: The lighthouse server address
+    :return: None
+    '''
     url = f"http://{server}/tasking/{session}"
     headers = {
         "accept": "application/json",

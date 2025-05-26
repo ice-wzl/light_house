@@ -44,16 +44,30 @@ cmds_session = WordCompleter(
 )
 
 
-def format_output(output: str):
+def format_output(output: str) -> str:
+    '''
+    Takes base64 encoded hex string from the lighthouse server and decodes it to a readable format.
+    :param output: The base64 encoded hex string from the server
+    :return: A decoded string or an error message if decoding fails
+    '''
     try:
         decoded_bytes = bytes.fromhex(output)
         decoded_base = base64.b64decode(decoded_bytes.decode("utf-8")).decode("utf-8")
         return decoded_base
     except (binascii.Error, UnicodeDecodeError, ValueError) as e:
         print_formatted_text(f"[*] Error decoding output: {e}")
+        return ""
 
 
-def get_result(token: str, server: str, session: str, id: int):
+def get_result(token: str, server: str, session: str, id: int) -> None:
+    '''
+    Get the result of a specific task for a session from the lighthouse server.
+    :param token: The authentication token for the lighthouse server
+    :param server: The lighthouse server address
+    :param session: The session ID to which the task belongs
+    :param id: The ID of the task result to retrieve
+    :return: None
+    '''
     url = f"http://{server}/results/{session}/{id}"
     headers = {
         "accept": "application/json",
@@ -70,7 +84,6 @@ def get_result(token: str, server: str, session: str, id: int):
         and response.json().get("detail") == "Bad Credentials"
     ):
         print_formatted_text("[*] Invalid token...time to reauthenticate")
-        return
     elif response.status_code == 200:
         result = response.json()
         table = PrettyTable()
@@ -90,10 +103,14 @@ def get_result(token: str, server: str, session: str, id: int):
         print_formatted_text(format_output(output))
     else:
         print_formatted_text(response.status_code, response.text, response)
-        return
 
 
-def format_sessions(sessions: list):
+def format_sessions(sessions: list) -> None:
+    '''
+    Formats the session data into a table for display in the merchant client.
+    :param sessions: A list of session dictionaries containing session data
+    :return: None
+    '''
     if isinstance(sessions, list):
         table = PrettyTable()
         table.field_names = [
