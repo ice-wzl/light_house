@@ -1,5 +1,6 @@
 #!/user/bin/python3 
 import httpx
+import sys
 import datetime
 from prompt_toolkit import print_formatted_text
 from prettytable import PrettyTable
@@ -61,6 +62,9 @@ def get_users(token: str, server: str):
     if response.status_code != 200:
         print_formatted_text("[*] Error fetching users")
         print_formatted_text(response.status_code, response.text, response)
+    elif response.status_code == 401 and response.json().get("detail") == "Bad Credentials":
+        print_formatted_text("[*] Invalid token...time to reauthenticate")
+        return
     else:
         if isinstance(response.json(), list):
             table = PrettyTable()
@@ -81,6 +85,7 @@ def get_users(token: str, server: str):
             print_formatted_text(response.json())
             return
         
+
 def get_user(token: str, server:str, id: int):
     url = f"http://{server}/users/{id}"
     headers = {
@@ -102,6 +107,9 @@ def get_user(token: str, server:str, id: int):
             created_at_formatted = "Null"
         table.add_row([id, username, password, created_at_formatted])
         print_formatted_text(table)
+    elif response.status_code == 401 and response.json().get("detail") == "Bad Credentials":
+        print_formatted_text("[*] Invalid token...time to reauthenticate")
+        return
     elif response.status_code == 404:
         print_formatted_text(f"[*] User id {id} not found!")
     else: print_formatted_text(response.status_code, response.text, response)

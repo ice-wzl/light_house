@@ -34,6 +34,9 @@ def send_task(token: str, server: str, session: str, tasking: str, args: str):
     elif response.status_code == 404:
         print_formatted_text(f"[*] Session {session} not found")
         return
+    elif response.status_code == 401 and response.json().get("detail") == "Bad Credentials":
+        print_formatted_text("[*] Invalid token...time to reauthenticate")
+        return
     else:
         print_formatted_text(response.status_code, response.text, response)
         return
@@ -68,4 +71,7 @@ def get_tasking(token: str, session: str, server: str):
             print_formatted_text(json_data)
     elif response.status_code == 404:
         print_formatted_text(f"[*] Session id {session} not found!")
+    elif response.status_code == 401 and response.json().get("detail") == "Bad Credentials":
+        print_formatted_text("[*] Invalid token...time to reauthenticate")
+        return
     else: print_formatted_text(response.status_code, response.text, response)

