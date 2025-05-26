@@ -34,5 +34,12 @@ CREATE TABLE results (
     FOREIGN KEY (tasking_id) REFERENCES tasking(id) ON DELETE CASCADE
 );
 
+CREATE TABLE users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT UNIQUE NOT NULL,
+    password TEXT NOT NULL,
+    created_at TEXT NOT NULL
+)
+
 
 
