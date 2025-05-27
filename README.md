@@ -7,5 +7,6 @@ I am hoping to add more agents in the future with similar capabilities to the ga
 ## The Theme
 The project has a nautical based theme for components. The theme for the agents is based on 15th-17th century ship classes.
 ````
-a sailing ship in use (especially by Spain) from the 15th through 17th centuries, originally as a warship, later for trade. Galleons were mainly square-rigged and usually had three or more decks and masts
+Galleon: a sailing ship in use (especially by Spain) from the 15th through 17th centuries, originally as a warship,
+later for trade. Galleons were mainly square-rigged and usually had three or more decks and masts.
 ````
