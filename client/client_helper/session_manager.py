@@ -148,7 +148,14 @@ def format_sessions(sessions: list) -> None:
     print_formatted_text(table)
 
 
-def get_sessions(token: str, server: str):
+def get_sessions(token: str, server: str) -> None:
+    '''
+    Grab all sessions from the lighthouse server. Data will be returned in a json array,
+    data is passed to format_session() to properly display the session data
+    :param token: The token used to auth to lighthouse server
+    :param server: The uri for the lighthouse server to retrieve the sessions
+    :return: None
+    '''
     url = f"http://{server}/implants/"
     headers = {
         "accept": "application/json",
@@ -160,17 +167,25 @@ def get_sessions(token: str, server: str):
         and response.json().get("detail") == "Bad Credentials"
     ):
         print_formatted_text("[*] Invalid token...time to reauthenticate")
-        return
+        
     elif response.status_code == 200 and isinstance(response.json(), list):
         # proper json array
         format_sessions(response.json())
     else:
         print_formatted_text("[*] Invalid data format")
         print_formatted_text(response.status_code, response.text, response)
-        return
+        
 
 
-def test_session(token: str, server: str, session: str):
+def test_session(token: str, server: str, session: str) -> int:
+    '''
+    Test if a session id is a valid session (either alive or dead) with the lighthouse server
+    We have this function as a pre-check before attempting to interact with an implant session
+    :param token: The token used to auth to lighthouse server
+    :param server: The uri for the lighthouse server to retrieve the sessions
+    :param session: The session id to check 
+    :return: None
+    '''
     url = f"http://{server}/implants/{session}"
     headers = {
         "accept": "application/json",
@@ -180,7 +195,14 @@ def test_session(token: str, server: str, session: str):
     return response.status_code
 
 
-def get_session(token: str, server: str, session: str):
+def get_session(token: str, server: str, session: str) -> int:
+    '''
+    Get information about a specific session from the lighthouse server
+    :param token: The token used to auth to lighthouse server
+    :param server: The uri for the lighthouse server to retrieve the sessions
+    :param session: The session to retrieve information about from the lighthouse server
+    :return: The status code from the lighthouse server
+    '''
     url = f"http://{server}/implants/{session}"
     headers = {
         "accept": "application/json",
@@ -230,13 +252,21 @@ def get_session(token: str, server: str, session: str):
         and response.json().get("detail") == "Bad Credentials"
     ):
         print_formatted_text("[*] Invalid token...time to reauthenticate")
-        return
+        
     else:
         print_formatted_text(response.status_code, response.text, response)
     return response.status_code
 
 
-def interact_implant(token: str, server: str, session_id: str):
+def interact_implant(token: str, server: str, session_id: str) -> None:
+    '''
+    Main interact loop to swap context into a specific implant session. Used to take in user input from the tasking
+    context and pass it to the session_router() function for validation and shipping to the lighthouse server.
+    :param token: The token used to auth to lighthouse server
+    :param server: The uri for the lighthouse server to retrieve the sessions
+    :param session_id: The session id to interact with
+    :return: None
+    '''
     interact = PromptSession()
     while True:
         options = interact.prompt(
@@ -261,7 +291,17 @@ def interact_implant(token: str, server: str, session_id: str):
         session_router(cmd, args, token, server, session_id)
 
 
-def session_router(cmd: str, args: list, token: str, server: str, session_id: str):
+def session_router(cmd: str, args: list, token: str, server: str, session_id: str) -> None:
+    '''
+    The session router that will take user input and ensure it is a valid command. It will then pass the 
+    validated command to the correct function for shipping to the lighthouse server
+    :param cmd: The command the user wishes to enter
+    :param args: The arguments for the base command
+    :param token: The token used to auth to lighthouse server
+    :param server: The uri for the lighthouse server to retrieve the sessions
+    :param session_id: The session id the tasking should be tied to
+    :return: None
+    '''
     if cmd == "info":
         get_session(token, server, session_id)
     elif cmd == "ls":
