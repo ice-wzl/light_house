@@ -157,6 +157,14 @@ def delete_user(user_id: int, db: SessionLocal = Depends(get_db), token: str = S
 # PROTECTED endpoint for clients to retrieve result based on session id and tasking id
 @app.get("/results/{session}/{id}", response_model=ResultsRead)
 def read_result(session: str, id: int, db: SessionLocal = Depends(get_db), token: str = Security(oauth2_scheme)):  # type: ignore
+    '''
+    Provide results of a tasking to the merchant client.
+    :param session: The session id of the agent to retrieve tasking
+    :param id: The id of the tasking that merchant wants results for
+    :param db: The connection to the database
+    :param token: The jwt authentication token used to auth to lighthouse
+    :return db_result: The result of the tasking provided back in json format
+    '''
     verify_token(token)
     db_implant = db.query(Implant).filter(Implant.session == session).first()
     if not db_implant:
@@ -172,6 +180,14 @@ def read_result(session: str, id: int, db: SessionLocal = Depends(get_db), token
 # recieve tasking output from agent based on session id, marks task complete = True
 @app.post("/results/{session}", response_model=ResultsCreate)
 def create_results(session: str, results: ResultsCreate, db: SessionLocal = Depends(get_db)):  # type: ignore
+    '''
+    The endpoint where agents will send result output back to the lighthouse server
+    :param session: The session id tied to the results being sent
+    :param results: The results of the provided tasking
+    :param db: The db connection to the sqlite database
+    :return db_task: The successful tasking result or 404 if the session is not found
+    or 400 if the results are not properly formatted
+    '''
     current_time = datetime.now(timezone.utc).isoformat()
     db_implant = db.query(Implant).filter(Implant.session == session).first()
     if not db_implant:
@@ -210,6 +226,15 @@ def create_results(session: str, results: ResultsCreate, db: SessionLocal = Depe
 # PROTECTED endpoint in order to create a task for an implant (client -> server)
 @app.post("/tasking/{session}", response_model=TaskingCreate)
 def create_tasking(session: str, tasking: TaskingCreate, db: SessionLocal = Depends(get_db), token: str = Security(oauth2_scheme)):  # type: ignore
+    '''
+    The endpoint where merchant will submit tasking requests to lighthouse for the agent to pick up and action
+    :param session: The session id we should associate with for the tasking request
+    :param tasking: The json blob containing the valid tasking request
+    :param db: The active database connection
+    :param token: The token used to authenticate a merchant to lighthouse
+    :return db_task: The json tasking information, 404 if the session is not found, 400 if the 
+    arguments are not valid for the tasking request
+    '''
     verify_token(token)
     current_time = datetime.now(timezone.utc).isoformat()
     # Check if the session exists
