@@ -6,9 +6,8 @@ from jose import JWTError, jwt
 from datetime import datetime, timedelta, timezone
 from typing import List
 
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, HTTPException, status, Depends, Security
 from fastapi.security import OAuth2PasswordRequestForm
-from fastapi import Depends, FastAPI, HTTPException, status, Security
 from fastapi.responses import RedirectResponse
 
 # local imports
@@ -36,7 +35,6 @@ from server_helper.results_helper import (
 )
 
 app = FastAPI()
-
 
 # for client only to be able to access protected endpoints, authentication via OAuth2
 @app.post("/token/", response_model=Token)
