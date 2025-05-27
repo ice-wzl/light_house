@@ -86,6 +86,12 @@ def verify_token(token: str, Depends=(oauth2_scheme)):
 # PROTECTED endpoint to view all information about all users
 @app.get("/users", response_model=List[UserRead])
 def read_users(db: SessionLocal = Depends(get_db), token: str = Security(oauth2_scheme)):  # type: ignore
+    '''
+    Provide all the users that exist in the users table
+    :param db: The active db connection
+    :param token: The jwt authentication token provided during authentication
+    :return users: The users from the user table in json format
+    '''
     verify_token(token)
     users = db.query(Users).all()
     return users
@@ -94,6 +100,12 @@ def read_users(db: SessionLocal = Depends(get_db), token: str = Security(oauth2_
 # PROTECTED endpoint to view all information about a user
 @app.get("/users/{user_id}", response_model=UserRead)
 def read_user(user_id: int, db: SessionLocal = Depends(get_db), token: str = Security(oauth2_scheme)):  # type: ignore
+    '''
+    Provide specific user by id that may or may not exist in the users table
+    :param db: The active db connection
+    :param token: The jwt authentication token provided during authentication
+    :return user: The requested user or a 404 code
+    '''
     verify_token(token)
     user = db.query(Users).filter(Users.id == user_id).first()
     if user is None:
@@ -104,6 +116,13 @@ def read_user(user_id: int, db: SessionLocal = Depends(get_db), token: str = Sec
 # PROTECTED endpoint to create a new user
 @app.post("/users/create", response_model=UserCreate)
 def create_user(user: UserCreate, db: SessionLocal = Depends(get_db), token: str = Security(oauth2_scheme)):  # type: ignore
+    '''
+    Create a user in the users table via username and password
+    :param user: The user to create via username and password
+    :param db: The active db connection
+    :param token: The jwt authentication token provided during authentication
+    :return db_user: The users information that was added to the users table or a 400 status code
+    '''
     verify_token(token)
     existing_user = db.query(Users).filter(Users.username == user.username).first()
     if existing_user:
@@ -119,6 +138,13 @@ def create_user(user: UserCreate, db: SessionLocal = Depends(get_db), token: str
 # PROTECTED endpoint to delete a user
 @app.delete("/users/delete/{user_id}", response_model=UserDelete)
 def delete_user(user_id: int, db: SessionLocal = Depends(get_db), token: str = Security(oauth2_scheme)):  # type: ignore
+    '''
+    The user to delete from the users table by ID
+    :param user_id: The user id to attempt to remove from the users table
+    :param db: The active db connection
+    :param token: The jwt authentication token provided during authentication
+    :return UserDelete: The user to delete from the users table, or 404 status code
+    '''
     verify_token(token)
     db_user = db.query(Users).filter(Users.id == user_id).first()
     if db_user is None:

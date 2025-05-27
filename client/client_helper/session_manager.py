@@ -286,6 +286,7 @@ def interact_implant(token: str, server: str, session_id: str) -> None:
         args = parsed[1:]
 
         if cmd == "back":
+            # drop back to the server context (leave implant context)
             return
 
         session_router(cmd, args, token, server, session_id)
