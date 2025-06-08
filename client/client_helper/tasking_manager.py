@@ -44,7 +44,7 @@ def send_task(token: str, server: str, session: str, tasking: str, args: str) ->
         completed = data.get("complete")
         returned_session = data.get("session")
         if session == returned_session and completed == "False":
-            print_formatted_text("[*] Tasking successfully recieved")
+            print_formatted_text("[*] Tasking successfully sent")
             return
     elif response.status_code == 404:
         print_formatted_text(f"[*] Session {session} not found")
