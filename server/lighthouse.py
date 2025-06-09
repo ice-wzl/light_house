@@ -38,7 +38,8 @@ app = FastAPI()
 
 # for client only to be able to access protected endpoints, authentication via OAuth2
 @app.post("/token/", response_model=Token)
-def login(db: SessionLocal = Depends(get_db), form_data: OAuth2PasswordRequestForm = Depends()):  # type: ignore
+def login(db: SessionLocal = Depends(get_db), # type: ignore
+          form_data: OAuth2PasswordRequestForm = Depends()):  
     user_exists = (
         db.query(Users)
         .filter(
@@ -83,7 +84,8 @@ def verify_token(token: str, Depends=(oauth2_scheme)):
 
 # PROTECTED endpoint to view all information about all users
 @app.get("/users", response_model=List[UserRead])
-def read_users(db: SessionLocal = Depends(get_db), token: str = Security(oauth2_scheme)):  # type: ignore
+def read_users(db: SessionLocal = Depends(get_db), # type: ignore
+               token: str = Security(oauth2_scheme)):  
     '''
     Provide all the users that exist in the users table
     :param db: The active db connection
@@ -97,7 +99,8 @@ def read_users(db: SessionLocal = Depends(get_db), token: str = Security(oauth2_
 
 # PROTECTED endpoint to view all information about a user
 @app.get("/users/{user_id}", response_model=UserRead)
-def read_user(user_id: int, db: SessionLocal = Depends(get_db), token: str = Security(oauth2_scheme)):  # type: ignore
+def read_user(user_id: int, db: SessionLocal = Depends(get_db), # type: ignore
+              token: str = Security(oauth2_scheme)):  
     '''
     Provide specific user by id that may or may not exist in the users table
     :param db: The active db connection
@@ -113,7 +116,8 @@ def read_user(user_id: int, db: SessionLocal = Depends(get_db), token: str = Sec
 
 # PROTECTED endpoint to create a new user
 @app.post("/users/create", response_model=UserCreate)
-def create_user(user: UserCreate, db: SessionLocal = Depends(get_db), token: str = Security(oauth2_scheme)):  # type: ignore
+def create_user(user: UserCreate, db: SessionLocal = Depends(get_db), # type: ignore
+                token: str = Security(oauth2_scheme)):  
     '''
     Create a user in the users table via username and password
     :param user: The user to create via username and password
@@ -135,7 +139,8 @@ def create_user(user: UserCreate, db: SessionLocal = Depends(get_db), token: str
 
 # PROTECTED endpoint to delete a user
 @app.delete("/users/delete/{user_id}", response_model=UserDelete)
-def delete_user(user_id: int, db: SessionLocal = Depends(get_db), token: str = Security(oauth2_scheme)):  # type: ignore
+def delete_user(user_id: int, db: SessionLocal = Depends(get_db), # type: ignore
+                token: str = Security(oauth2_scheme)):  
     '''
     The user to delete from the users table by ID
     :param user_id: The user id to attempt to remove from the users table
@@ -154,7 +159,8 @@ def delete_user(user_id: int, db: SessionLocal = Depends(get_db), token: str = S
 
 # PROTECTED endpoint for clients to retrieve result based on session id and tasking id
 @app.get("/results/{session}/{id}", response_model=ResultsRead)
-def read_result(session: str, id: int, db: SessionLocal = Depends(get_db), token: str = Security(oauth2_scheme)):  # type: ignore
+def read_result(session: str, id: int, db: SessionLocal = Depends(get_db), # type: ignore
+                token: str = Security(oauth2_scheme)):  
     '''
     Provide results of a tasking to the merchant client.
     :param session: The session id of the agent to retrieve tasking
@@ -180,7 +186,9 @@ def read_result(session: str, id: int, db: SessionLocal = Depends(get_db), token
 
 # recieve tasking output from agent based on session id, marks task complete = True
 @app.post("/results/{session}", response_model=ResultsCreate)
-def create_results(session: str, results: ResultsCreate, db: SessionLocal = Depends(get_db)):  # type: ignore
+def create_results(session: str, 
+                   results: ResultsCreate, 
+                   db: SessionLocal = Depends(get_db)):  # type: ignore
     '''
     The endpoint where agents will send result output back to the lighthouse server
     :param session: The session id tied to the results being sent
@@ -226,7 +234,9 @@ def create_results(session: str, results: ResultsCreate, db: SessionLocal = Depe
 
 # PROTECTED endpoint in order to create a task for an implant (client -> server)
 @app.post("/tasking/{session}", response_model=TaskingCreate)
-def create_tasking(session: str, tasking: TaskingCreate, db: SessionLocal = Depends(get_db), token: str = Security(oauth2_scheme)):  # type: ignore
+def create_tasking(session: str, tasking: TaskingCreate, db: 
+                   SessionLocal = Depends(get_db), # type: ignore
+                   token: str = Security(oauth2_scheme)):  
     '''
     The endpoint where merchant will submit tasking requests to lighthouse for the agent to pick up and action
     :param session: The session id we should associate with for the tasking request
@@ -268,7 +278,9 @@ def create_tasking(session: str, tasking: TaskingCreate, db: SessionLocal = Depe
 
 # PROTECTED endpoint for client to retrieve taskings
 @app.get("/tasking/{session}", response_model=List[TaskingRead])
-def read_taskings(session: str, db: SessionLocal = Depends(get_db), token: str = Security(oauth2_scheme)):  # type: ignore
+def read_taskings(session: str, 
+                  db: SessionLocal = Depends(get_db), # type: ignore
+                  token: str = Security(oauth2_scheme)):  
     verify_token(token)
     db_implant = db.query(Implant).filter(Implant.session == session).first()
     if not db_implant:
@@ -308,7 +320,8 @@ def create_implant(implant: ImplantCreate, db: SessionLocal = Depends(get_db)): 
 
 # PROTECTED endpoint for clients only to be able to view all implants
 @app.get("/implants/", response_model=List[ImplantRead])
-def read_implants(db: SessionLocal = Depends(get_db), token: str = Security(oauth2_scheme)):  # type: ignore
+def read_implants(db: SessionLocal = Depends(get_db), # type: ignore
+                  token: str = Security(oauth2_scheme)):  
     verify_token(token)
     implants = db.query(Implant).all()
     return implants
@@ -316,7 +329,9 @@ def read_implants(db: SessionLocal = Depends(get_db), token: str = Security(oaut
 
 # PROTECTED endpoint for clients to be able to view a single implant by session
 @app.get("/implants/{session}", response_model=ImplantRead)
-def read_single_implant(session: str, db: SessionLocal = Depends(get_db), token: str = Security(oauth2_scheme)):  # type: ignore
+def read_single_implant(session: str, 
+                        db: SessionLocal = Depends(get_db), # type: ignore
+                        token: str = Security(oauth2_scheme)):  
     verify_token(token)
     implant = db.query(Implant).filter(Implant.session == session).first()
     if implant is None:
