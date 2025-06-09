@@ -3,6 +3,8 @@ import httpx
 import shlex
 import base64
 import binascii
+import gzip
+import io
 
 from prettytable import PrettyTable
 
@@ -36,10 +38,12 @@ cmds_session = WordCompleter(
         "exec_bg",
         "back",
         "upload",
+        "download",
         "ps",
         "tasking",
         "view",
         "reconfig",
+        "kill",
         "help",
     ]
 )
@@ -58,6 +62,40 @@ def format_output(output: str) -> str:
     except (binascii.Error, UnicodeDecodeError, ValueError) as e:
         print_formatted_text(f"[*] Error decoding output: {e}")
         return ""
+
+
+def format_download_output(output):
+    try:
+        # hex -> base64 -> gzip
+        decoded_bytes = bytes.fromhex(output)
+        decoded_data = base64.b64decode(decoded_bytes)
+        with gzip.GzipFile(fileobj=io.BytesIO(decoded_data)) as gz:
+            decompressed_data = gz.read()
+        return decompressed_data.decode("utf-8", errors="replace")
+    except Exception as e:
+        # we had a download error and the error messages are base64 -> hex
+        # call the normal viewer
+        print_formatted_text(format_output(output))
+
+
+def get_download_result(response: list):
+    result = response.json()
+    table = PrettyTable()
+    table.field_names = ["ID", "Session", "Date Received", "Task", "Args"]
+    id = result.get("id")
+    session_id = result.get("session")
+    date_received = result.get("date", "Null")
+    if date_received != "Null":
+        date_received_formatted = fix_date(date_received)
+    else:
+        date_received_formatted = "Null"
+    task = result.get("task", "Null")
+    args = result.get("args", "Null")
+    table.add_row([id, session_id, date_received_formatted, task, args])
+    print_formatted_text(table)
+    output = result.get("results", "Null")
+    print_formatted_text(format_download_output(output))
+
 
 
 def get_result(token: str, server: str, session: str, id: int) -> None:
@@ -87,6 +125,11 @@ def get_result(token: str, server: str, session: str, id: int) -> None:
         print_formatted_text("[*] Invalid token...time to reauthenticate")
     elif response.status_code == 200:
         result = response.json()
+
+        if result.get("task") == "download":
+            get_download_result(response)
+            return
+
         table = PrettyTable()
         table.field_names = ["ID", "Session", "Date Received", "Task", "Args"]
         id = result.get("id")
@@ -253,6 +296,8 @@ def get_session(token: str, server: str, session: str) -> int:
         and response.json().get("detail") == "Bad Credentials"
     ):
         print_formatted_text("[*] Invalid token...time to reauthenticate")
+    elif response.status_code == 410:
+        print_formatted_text(f"[*] {response.json().get("detail")}")
         
     else:
         print_formatted_text(response.status_code, response.text, response)
@@ -337,6 +382,18 @@ def session_router(cmd: str, args: list, token: str, server: str, session_id: st
             get_result(token, server, session_id, int(args[0]))
         else:
             print_formatted_text("[*] Expecting task id -> view <task-id>")
+    elif cmd == "kill":
+        print_formatted_text(f"[!!!] Are you sure you want to terminate {session_id}: [y/N]")
+        get_choice = input("--> ")
+        if get_choice.upper() == "" or get_choice.upper() == "N":
+            return
+        elif get_choice.upper() == "Y":
+            send_task(token, server, session_id, "kill", "")
+    elif cmd == "download":
+        if len(args) == 1:
+            send_task(token, server, session_id, "download", args[0])
+        else:
+            print_formatted_text("[*] Expecting command -> download '/full/path/to_file'")
 
 
 def validate_reconfig_values(args):
@@ -344,7 +401,7 @@ def validate_reconfig_values(args):
         print_formatted_text("[*] Cannot set callbacks to lower than one minute")
         return False
     if args[1] > 100 or args[1] < 1:
-        print_formatted_text("[*] Jitter is a \%\ of call back frequency, cannot be outside 0-100")
+        print_formatted_text("[*] Jitter is a % of call back frequency, cannot be outside 0-100")
         return False
     if args[2] < 5:
         print_formatted_text("[*] Cannot except a max errors before self terminate lower than 5")

@@ -168,7 +168,10 @@ def read_result(session: str, id: int, db: SessionLocal = Depends(get_db), token
     if not db_implant:
         raise HTTPException(status_code=404, detail="Session not found")
     db_result = (
-        db.query(Results).filter(Results.session == session, Results.id == id).first()
+        # this was a bad bug
+        # db.query(Results).filter(Results.session == session, Results.id == id).first()
+        db.query(Results).filter(Results.session == session, Results.tasking_id == id).first()
+
     )
     if db_result is None:
         raise HTTPException(status_code=416, detail="Result out of range")
