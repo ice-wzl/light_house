@@ -3,5 +3,6 @@ httpx==0.28.1
 python-jose==3.3.0
 prettytable==3.16.0
 prompt_toolkit==3.0.51
-pydantic==2.11.4
+pydantic==2.11.7
 SQLAlchemy==2.0.41
+python-multipart==0.0.20

