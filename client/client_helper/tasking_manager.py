@@ -6,6 +6,21 @@ from prettytable import PrettyTable
 from client_helper.user_manager import fix_date
 
 
+def format_output(output: str) -> str:
+    '''
+    Takes base64 encoded hex string from the lighthouse server and decodes it to a readable format.
+    :param output: The base64 encoded hex string from the server
+    :return: A decoded string or an error message if decoding fails
+    '''
+    try:
+        decoded_bytes = bytes.fromhex(output)
+        decoded_base = base64.b64decode(decoded_bytes.decode("utf-8")).decode("utf-8")
+        return decoded_base
+    except (binascii.Error, UnicodeDecodeError, ValueError) as e:
+        print_formatted_text(f"[*] Error decoding output: {e}")
+        return ""
+
+
 def format_args(args: str) -> str:
     '''
     Base64 encodes the arguments and converts them to a hex string. 
@@ -59,6 +74,11 @@ def send_task(token: str, server: str, session: str, tasking: str, args: str) ->
         print_formatted_text(response.status_code, response.text, response)
         return
 
+def reformat_upload(input: str) -> str:
+    args_split = input.split(":")
+    return format_output(args_split[0])
+    
+
 
 def get_tasking(token: str, session: str, server: str) -> None:
     '''
@@ -93,7 +113,14 @@ def get_tasking(token: str, session: str, server: str) -> None:
                 if date_sent != "Null":
                     date_sent_formatted = fix_date(date_sent)
                 task = tasking.get("task")
-                args = tasking.get("args")
+                if task == "upload":
+                    args = reformat_upload(tasking.get("args"))
+                else:
+                    args = tasking.get("args")
+                
+                # YOU HAVE A BUG HERE FOR UPLOAD YOU SEND THE ENCODED FILE AS ARG...IT BREAKS MERCHANT
+                # out need to send file name to upload as i.e. dest path : filename 
+                # and then when you display upload you can stop after 
                 complete = tasking.get("complete")
                 table.add_row(
                     [id, session_id, date_sent_formatted, task, args, complete]

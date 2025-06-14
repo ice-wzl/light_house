@@ -5,6 +5,7 @@ import base64
 import binascii
 import gzip
 import io
+import os
 
 from prettytable import PrettyTable
 
@@ -16,6 +17,7 @@ from prompt_toolkit import print_formatted_text
 # local imports
 from client_helper.user_manager import fix_date
 from client_helper.tasking_manager import get_tasking, send_task
+from client_helper.tasking_manager import format_args
 
 # colors for the sessions prompt
 style_session = Style.from_dict(
@@ -140,6 +142,9 @@ def get_result(token: str, server: str, session: str, id: int) -> None:
         else:
             date_received_formatted = "Null"
         task = result.get("task", "Null")
+        if task == "upload":
+            print_formatted_text("[+] No output for upload commands")
+            return
         args = result.get("args", "Null")
         table.add_row([id, session_id, date_received_formatted, task, args])
         print_formatted_text(table)
@@ -394,6 +399,42 @@ def session_router(cmd: str, args: list, token: str, server: str, session_id: st
             send_task(token, server, session_id, "download", args[0])
         else:
             print_formatted_text("[*] Expecting command -> download '/full/path/to_file'")
+    elif cmd == "upload":
+        if len(args) == 2:
+            # get binary formatted properly and ship it here as args[0]
+            # we also should specify what to name it likely need another arg here
+            dst_path = format_args(args[1])
+            success, binary_to_send = process_upload_binary(args[0])
+            
+            if success:
+                send_task(token, server, session_id, "upload", dst_path+":"+binary_to_send)
+                return
+        else:
+            print_formatted_text("[*] Expecting command -> upload '/full/path/src.txt' '/full/path/dst.txt'")
+    
+
+def format_upload_binary(bin_contents: bytes) -> str:
+    buf = io.BytesIO()
+    with gzip.GzipFile(fileobj=buf, mode='wb') as gz:
+        gz.write(bin_contents)
+    compressed_bytes = buf.getvalue()
+    base64_bytes = base64.b64encode(compressed_bytes)
+    return base64_bytes.hex()
+
+def process_upload_binary(file_path: str) -> tuple[bool, str]:
+    if not os.path.exists(file_path):
+        print_formatted_text(f"[!!!] {file_path} no such file or directory")
+        return False, ''
+    try:
+        with open(file_path, "rb") as fp:
+            contents = fp.read()
+            final_bin = format_upload_binary(contents)
+        return True, final_bin  # <-- return string
+
+    except Exception as e:
+        print_formatted_text(f"[!!!] {e}")
+        return False, ''
+
 
 
 def validate_reconfig_values(args):
