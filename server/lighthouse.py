@@ -206,7 +206,7 @@ def read_result(
 # recieve tasking output from agent based on session id, marks task complete = True
 @app.post("/results/{session}", response_model=ResultsCreate)
 def create_results(
-    session: str, results: ResultsCreate, db: SessionLocal = Depends(get_db) # type: ignore
+    session: str, results: ResultsCreate, db: SessionLocal = Depends(get_db)  # type: ignore
 ):
     """
     The endpoint where agents will send result output back to the lighthouse server

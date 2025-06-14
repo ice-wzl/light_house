@@ -52,11 +52,11 @@ cmds_session = WordCompleter(
 
 
 def format_output(output: str) -> str:
-    '''
+    """
     Takes base64 encoded hex string from the lighthouse server and decodes it to a readable format.
     :param output: The base64 encoded hex string from the server
     :return: A decoded string or an error message if decoding fails
-    '''
+    """
     try:
         decoded_bytes = bytes.fromhex(output)
         decoded_base = base64.b64decode(decoded_bytes.decode("utf-8")).decode("utf-8")
@@ -99,16 +99,15 @@ def get_download_result(response: list):
     print_formatted_text(format_download_output(output))
 
 
-
 def get_result(token: str, server: str, session: str, id: int) -> None:
-    '''
+    """
     Get the result of a specific task for a session from the lighthouse server.
     :param token: The authentication token for the lighthouse server
     :param server: The lighthouse server address
     :param session: The session ID to which the task belongs
     :param id: The ID of the task result to retrieve
     :return: None
-    '''
+    """
     url = f"http://{server}/results/{session}/{id}"
     headers = {
         "accept": "application/json",
@@ -155,11 +154,11 @@ def get_result(token: str, server: str, session: str, id: int) -> None:
 
 
 def format_sessions(sessions: list) -> None:
-    '''
+    """
     Formats the session data into a table for display in the merchant client.
     :param sessions: A list of session dictionaries containing session data
     :return: None
-    '''
+    """
     if isinstance(sessions, list):
         table = PrettyTable()
         table.field_names = [
@@ -198,13 +197,13 @@ def format_sessions(sessions: list) -> None:
 
 
 def get_sessions(token: str, server: str) -> None:
-    '''
+    """
     Grab all sessions from the lighthouse server. Data will be returned in a json array,
     data is passed to format_session() to properly display the session data
     :param token: The token used to auth to lighthouse server
     :param server: The uri for the lighthouse server to retrieve the sessions
     :return: None
-    '''
+    """
     url = f"http://{server}/implants/"
     headers = {
         "accept": "application/json",
@@ -216,25 +215,24 @@ def get_sessions(token: str, server: str) -> None:
         and response.json().get("detail") == "Bad Credentials"
     ):
         print_formatted_text("[*] Invalid token...time to reauthenticate")
-        
+
     elif response.status_code == 200 and isinstance(response.json(), list):
         # proper json array
         format_sessions(response.json())
     else:
         print_formatted_text("[*] Invalid data format")
         print_formatted_text(response.status_code, response.text, response)
-        
 
 
 def test_session(token: str, server: str, session: str) -> int:
-    '''
+    """
     Test if a session id is a valid session (either alive or dead) with the lighthouse server
     We have this function as a pre-check before attempting to interact with an implant session
     :param token: The token used to auth to lighthouse server
     :param server: The uri for the lighthouse server to retrieve the sessions
-    :param session: The session id to check 
+    :param session: The session id to check
     :return: None
-    '''
+    """
     url = f"http://{server}/implants/{session}"
     headers = {
         "accept": "application/json",
@@ -245,13 +243,13 @@ def test_session(token: str, server: str, session: str) -> int:
 
 
 def get_session(token: str, server: str, session: str) -> int:
-    '''
+    """
     Get information about a specific session from the lighthouse server
     :param token: The token used to auth to lighthouse server
     :param server: The uri for the lighthouse server to retrieve the sessions
     :param session: The session to retrieve information about from the lighthouse server
     :return: The status code from the lighthouse server
-    '''
+    """
     url = f"http://{server}/implants/{session}"
     headers = {
         "accept": "application/json",
@@ -303,21 +301,21 @@ def get_session(token: str, server: str, session: str) -> int:
         print_formatted_text("[*] Invalid token...time to reauthenticate")
     elif response.status_code == 410:
         print_formatted_text(f"[*] {response.json().get("detail")}")
-        
+
     else:
         print_formatted_text(response.status_code, response.text, response)
     return response.status_code
 
 
 def interact_implant(token: str, server: str, session_id: str) -> None:
-    '''
+    """
     Main interact loop to swap context into a specific implant session. Used to take in user input from the tasking
     context and pass it to the session_router() function for validation and shipping to the lighthouse server.
     :param token: The token used to auth to lighthouse server
     :param server: The uri for the lighthouse server to retrieve the sessions
     :param session_id: The session id to interact with
     :return: None
-    '''
+    """
     interact = PromptSession()
     while True:
         options = interact.prompt(
@@ -343,9 +341,11 @@ def interact_implant(token: str, server: str, session_id: str) -> None:
         session_router(cmd, args, token, server, session_id)
 
 
-def session_router(cmd: str, args: list, token: str, server: str, session_id: str) -> None:
-    '''
-    The session router that will take user input and ensure it is a valid command. It will then pass the 
+def session_router(
+    cmd: str, args: list, token: str, server: str, session_id: str
+) -> None:
+    """
+    The session router that will take user input and ensure it is a valid command. It will then pass the
     validated command to the correct function for shipping to the lighthouse server
     :param cmd: The command the user wishes to enter
     :param args: The arguments for the base command
@@ -353,7 +353,7 @@ def session_router(cmd: str, args: list, token: str, server: str, session_id: st
     :param server: The uri for the lighthouse server to retrieve the sessions
     :param session_id: The session id the tasking should be tied to
     :return: None
-    '''
+    """
     if cmd == "info":
         get_session(token, server, session_id)
     elif cmd == "ls":
@@ -379,16 +379,20 @@ def session_router(cmd: str, args: list, token: str, server: str, session_id: st
         if not validate_reconfig_values(args):
             return
         if len(args) == 3 and validate_reconfig(args):
-            send_task(token, server, session_id, "reconfig", ' '.join(args[0:]))
+            send_task(token, server, session_id, "reconfig", " ".join(args[0:]))
         else:
-            print_formatted_text("[*] Expecting reconfig <callback freq> <jitter> <max errors>")
+            print_formatted_text(
+                "[*] Expecting reconfig <callback freq> <jitter> <max errors>"
+            )
     elif cmd == "view":
         if len(args) == 1:
             get_result(token, server, session_id, int(args[0]))
         else:
             print_formatted_text("[*] Expecting task id -> view <task-id>")
     elif cmd == "kill":
-        print_formatted_text(f"[!!!] Are you sure you want to terminate {session_id}: [y/N]")
+        print_formatted_text(
+            f"[!!!] Are you sure you want to terminate {session_id}: [y/N]"
+        )
         get_choice = input("--> ")
         if get_choice.upper() == "" or get_choice.upper() == "N":
             return
@@ -398,33 +402,40 @@ def session_router(cmd: str, args: list, token: str, server: str, session_id: st
         if len(args) == 1:
             send_task(token, server, session_id, "download", args[0])
         else:
-            print_formatted_text("[*] Expecting command -> download '/full/path/to_file'")
+            print_formatted_text(
+                "[*] Expecting command -> download '/full/path/to_file'"
+            )
     elif cmd == "upload":
         if len(args) == 2:
             # get binary formatted properly and ship it here as args[0]
             # we also should specify what to name it likely need another arg here
             dst_path = format_args(args[1])
             success, binary_to_send = process_upload_binary(args[0])
-            
+
             if success:
-                send_task(token, server, session_id, "upload", dst_path+":"+binary_to_send)
+                send_task(
+                    token, server, session_id, "upload", dst_path + ":" + binary_to_send
+                )
                 return
         else:
-            print_formatted_text("[*] Expecting command -> upload '/full/path/src.txt' '/full/path/dst.txt'")
-    
+            print_formatted_text(
+                "[*] Expecting command -> upload '/full/path/src.txt' '/full/path/dst.txt'"
+            )
+
 
 def format_upload_binary(bin_contents: bytes) -> str:
     buf = io.BytesIO()
-    with gzip.GzipFile(fileobj=buf, mode='wb') as gz:
+    with gzip.GzipFile(fileobj=buf, mode="wb") as gz:
         gz.write(bin_contents)
     compressed_bytes = buf.getvalue()
     base64_bytes = base64.b64encode(compressed_bytes)
     return base64_bytes.hex()
 
+
 def process_upload_binary(file_path: str) -> tuple[bool, str]:
     if not os.path.exists(file_path):
         print_formatted_text(f"[!!!] {file_path} no such file or directory")
-        return False, ''
+        return False, ""
     try:
         with open(file_path, "rb") as fp:
             contents = fp.read()
@@ -433,8 +444,7 @@ def process_upload_binary(file_path: str) -> tuple[bool, str]:
 
     except Exception as e:
         print_formatted_text(f"[!!!] {e}")
-        return False, ''
-
+        return False, ""
 
 
 def validate_reconfig_values(args):
@@ -442,14 +452,19 @@ def validate_reconfig_values(args):
         print_formatted_text("[*] Cannot set callbacks to lower than one minute")
         return False
     if args[1] > 100 or args[1] < 1:
-        print_formatted_text("[*] Jitter is a % of call back frequency, cannot be outside 0-100")
+        print_formatted_text(
+            "[*] Jitter is a % of call back frequency, cannot be outside 0-100"
+        )
         return False
     if args[2] < 5:
-        print_formatted_text("[*] Cannot except a max errors before self terminate lower than 5")
+        print_formatted_text(
+            "[*] Cannot except a max errors before self terminate lower than 5"
+        )
         return False
     return True
 
-# we dont validate these args on the implant side to try and 
+
+# we dont validate these args on the implant side to try and
 # keep the size of agent code down, so really validate here
 def validate_reconfig(args) -> bool:
     for arg in args:

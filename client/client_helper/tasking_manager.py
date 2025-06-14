@@ -7,11 +7,11 @@ from client_helper.user_manager import fix_date
 
 
 def format_output(output: str) -> str:
-    '''
+    """
     Takes base64 encoded hex string from the lighthouse server and decodes it to a readable format.
     :param output: The base64 encoded hex string from the server
     :return: A decoded string or an error message if decoding fails
-    '''
+    """
     try:
         decoded_bytes = bytes.fromhex(output)
         decoded_base = base64.b64decode(decoded_bytes.decode("utf-8")).decode("utf-8")
@@ -22,18 +22,18 @@ def format_output(output: str) -> str:
 
 
 def format_args(args: str) -> str:
-    '''
-    Base64 encodes the arguments and converts them to a hex string. 
+    """
+    Base64 encodes the arguments and converts them to a hex string.
     This is to ensure no special characters break the tasking.
     :param args: The arguments to be formatted
     :return: A hex string representation of the base64 encoded arguments
-    '''
+    """
     based = base64.b64encode(args.encode("utf-8"))
     return based.hex()
 
 
 def send_task(token: str, server: str, session: str, tasking: str, args: str) -> None:
-    '''
+    """
     Sends a task to the lighthouse server for a specific session.
     :param token: The authentication token for the lighthouse server
     :param server: The lighthouse server address
@@ -41,7 +41,7 @@ def send_task(token: str, server: str, session: str, tasking: str, args: str) ->
     :param tasking: The task to be sent
     :param args: The arguments for the task
     :return: None
-    '''
+    """
     argsf = format_args(args)
     url = f"http://{server}/tasking/{session}"
     headers = {
@@ -74,20 +74,20 @@ def send_task(token: str, server: str, session: str, tasking: str, args: str) ->
         print_formatted_text(response.status_code, response.text, response)
         return
 
+
 def reformat_upload(input: str) -> str:
     args_split = input.split(":")
     return format_output(args_split[0])
-    
 
 
 def get_tasking(token: str, session: str, server: str) -> None:
-    '''
+    """
     Retrieves tasking for a specific session from the lighthouse server.
     :param token: The authentication token for the lighthouse server
     :param session: The session ID for which to retrieve tasking
     :param server: The lighthouse server address
     :return: None
-    '''
+    """
     url = f"http://{server}/tasking/{session}"
     headers = {
         "accept": "application/json",
@@ -117,10 +117,10 @@ def get_tasking(token: str, session: str, server: str) -> None:
                     args = reformat_upload(tasking.get("args"))
                 else:
                     args = tasking.get("args")
-                
+
                 # YOU HAVE A BUG HERE FOR UPLOAD YOU SEND THE ENCODED FILE AS ARG...IT BREAKS MERCHANT
-                # out need to send file name to upload as i.e. dest path : filename 
-                # and then when you display upload you can stop after 
+                # out need to send file name to upload as i.e. dest path : filename
+                # and then when you display upload you can stop after
                 complete = tasking.get("complete")
                 table.add_row(
                     [id, session_id, date_sent_formatted, task, args, complete]
