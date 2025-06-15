@@ -1,4 +1,5 @@
 # light_house
+- LightHouse is in Alpha release, if you encounter an issue or have a suggestion, open an issue ticket or create a PR!
 ## Design
 light_house is broken up into four general components
 The python server called lighthouse, the go agent called galleon, the python client called merchant, and the sqlite database.
