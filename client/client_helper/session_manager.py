@@ -108,13 +108,13 @@ def get_result(token: str, server: str, session: str, id: int) -> None:
     :param id: The ID of the task result to retrieve
     :return: None
     """
-    url = f"http://{server}/results/{session}/{id}"
+    url = f"https://{server}/results/{session}/{id}"
     headers = {
         "accept": "application/json",
         "Authorization": f"Bearer {token}",
     }
 
-    response = httpx.get(url, headers=headers)
+    response = httpx.get(url, headers=headers, verify=False)
     if response.status_code == 404:
         print_formatted_text(f"[*] Session id {session} not found!")
     elif response.status_code == 416:
@@ -204,12 +204,12 @@ def get_sessions(token: str, server: str) -> None:
     :param server: The uri for the lighthouse server to retrieve the sessions
     :return: None
     """
-    url = f"http://{server}/implants/"
+    url = f"https://{server}/implants/"
     headers = {
         "accept": "application/json",
         "Authorization": f"Bearer {token}",
     }
-    response = httpx.get(url, headers=headers)
+    response = httpx.get(url, headers=headers, verify=False)
     if (
         response.status_code == 401
         and response.json().get("detail") == "Bad Credentials"
@@ -233,12 +233,12 @@ def test_session(token: str, server: str, session: str) -> int:
     :param session: The session id to check
     :return: None
     """
-    url = f"http://{server}/implants/{session}"
+    url = f"https://{server}/implants/{session}"
     headers = {
         "accept": "application/json",
         "Authorization": f"Bearer {token}",
     }
-    response = httpx.get(url, headers=headers)
+    response = httpx.get(url, headers=headers, verify=False)
     return response.status_code
 
 
@@ -250,12 +250,12 @@ def get_session(token: str, server: str, session: str) -> int:
     :param session: The session to retrieve information about from the lighthouse server
     :return: The status code from the lighthouse server
     """
-    url = f"http://{server}/implants/{session}"
+    url = f"https://{server}/implants/{session}"
     headers = {
         "accept": "application/json",
         "Authorization": f"Bearer {token}",
     }
-    response = httpx.get(url, headers=headers)
+    response = httpx.get(url, headers=headers, verify=False)
     if response.status_code == 200:
         session = response.json()
         table = PrettyTable()

@@ -33,7 +33,7 @@ def user_add(token: str, server: str, username: str, password: str) -> None:
     :param password: The password for the new user
     :return: None
     """
-    url = f"http://{server}/users/create"
+    url = f"https://{server}/users/create"
     headers = {
         "accept": "application/json",
         "Authorization": f"Bearer {token}",
@@ -42,7 +42,7 @@ def user_add(token: str, server: str, username: str, password: str) -> None:
         "username": username,
         "password": password,
     }
-    response = httpx.post(url, headers=headers, json=data)
+    response = httpx.post(url, headers=headers, json=data, verify=False)
     if response.status_code == 400:
         print_formatted_text("[*] Username already exists")
     elif response.status_code == 200:
@@ -61,12 +61,12 @@ def user_delete(token: str, server: str, user_id: int) -> None:
     :param user_id: The ID of the user to delete
     :return: None
     """
-    url = f"http://{server}/users/delete/{user_id}"
+    url = f"https://{server}/users/delete/{user_id}"
     headers = {
         "accept": "application/json",
         "Authorization": f"Bearer {token}",
     }
-    response = httpx.delete(url, headers=headers)
+    response = httpx.delete(url, headers=headers, verify=False)
     if response.status_code == 404:
         print_formatted_text(f"[*] User id {user_id} not found!")
     elif response.status_code == 200:
@@ -82,12 +82,12 @@ def get_users(token: str, server: str) -> None:
     :param server: The lighthouse server address
     :return: None
     """
-    url = f"http://{server}/users"
+    url = f"https://{server}/users"
     headers = {
         "accept": "application/json",
         "Authorization": f"Bearer {token}",
     }
-    response = httpx.get(url, headers=headers)
+    response = httpx.get(url, headers=headers, verify=False)
     if response.status_code != 200:
         print_formatted_text("[*] Error fetching users")
         print_formatted_text(response.status_code, response.text, response)
@@ -124,12 +124,12 @@ def get_user(token: str, server: str, id: int) -> None:
     :param id: The ID of the user to retrieve
     :return: None
     """
-    url = f"http://{server}/users/{id}"
+    url = f"https://{server}/users/{id}"
     headers = {
         "accept": "application/json",
         "Authorization": f"Bearer {token}",
     }
-    response = httpx.get(url, headers=headers)
+    response = httpx.get(url, headers=headers, verify=False)
     if response.status_code == 200:
         user = response.json()
         table = PrettyTable()
@@ -164,7 +164,7 @@ def authenticate(username: str, password: str, server: str) -> str:
     :param server: The lighthouse server address
     :return: The access token if authentication is successful, otherwise exits the program
     """
-    url = f"http://{server}/token/"
+    url = f"https://{server}/token/"
     headers = {
         "accept": "application/json",
         "Content-Type": "application/x-www-form-urlencoded",
@@ -178,7 +178,7 @@ def authenticate(username: str, password: str, server: str) -> str:
         "client_secret": "string",
     }
 
-    response = httpx.post(url, headers=headers, data=data)
+    response = httpx.post(url, headers=headers, data=data, verify=False)
 
     if response.status_code == 200:
         response_data = response.json()

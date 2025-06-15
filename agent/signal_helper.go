@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -19,7 +18,7 @@ func setupSignalHandler() chan os.Signal {
 func sendDeathMessage(serverAddr string, session string) (int, error) {
 	url := fmt.Sprintf("%s/health/d/%s", serverAddr, session)
 
-	resp, err := http.Get(url)
+	resp, err := customClient.Get(url)
 	if err != nil {
 		return 0, err
 	}

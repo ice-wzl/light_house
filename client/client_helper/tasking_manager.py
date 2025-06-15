@@ -43,7 +43,7 @@ def send_task(token: str, server: str, session: str, tasking: str, args: str) ->
     :return: None
     """
     argsf = format_args(args)
-    url = f"http://{server}/tasking/{session}"
+    url = f"https://{server}/tasking/{session}"
     headers = {
         "accept": "application/json",
         "Authorization": f"Bearer {token}",
@@ -53,7 +53,7 @@ def send_task(token: str, server: str, session: str, tasking: str, args: str) ->
         "task": f"{tasking}",
         "args": f"{argsf}",
     }
-    response = httpx.post(url, headers=headers, json=data)
+    response = httpx.post(url, headers=headers, json=data, verify=False)
     if response.status_code == 200:
         data = response.json()
         completed = data.get("complete")
@@ -88,12 +88,12 @@ def get_tasking(token: str, session: str, server: str) -> None:
     :param server: The lighthouse server address
     :return: None
     """
-    url = f"http://{server}/tasking/{session}"
+    url = f"https://{server}/tasking/{session}"
     headers = {
         "accept": "application/json",
         "Authorization": f"Bearer {token}",
     }
-    response = httpx.get(url, headers=headers)
+    response = httpx.get(url, headers=headers, verify=False)
     if response.status_code == 200:
         json_data = response.json()
         if isinstance(json_data, list):

