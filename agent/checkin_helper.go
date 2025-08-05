@@ -115,6 +115,13 @@ func PostJson(url string, payload interface{}) (int, error) {
 		return 0, err
 	}
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept-Encoding", "gzip, deflate, br, zstd")
+	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
+	req.Header.Set("SEC-CH-UA-PLATFORM", "Windows")
+	req.Header.Set("SEC-CH-UA-PLATFORM-VERSION", "3.0.0")
+	req.Header.Set("SEC-FETCH-SITE", "cross-site")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36")
+
 	resp, err := customClient.Do(req)
 
 	if err != nil {
