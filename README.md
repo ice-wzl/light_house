@@ -23,9 +23,10 @@ cd agent
 - Callback_freq -> minutes
 - Jitter is a "max cap percentage". Jitter will be randomized each callback between 1% and the value you have set for jitter (i.e. 15%). What that means is for each callback the expected jitter will be between 1 and 15% of the overall callback time.
 - SelfTerminate is a max failed checkins. An error occurs if the galleon agent cannot reach the lighthouse server. Say the internet is out, or the lighthouse server is not running, that will count as an error. If the galleon agent is set to callback every 1 minute, and SelfTerminate is 20, the galleon agent will die in 20 minutes if it has failed to checkin with lighthouse.
+- Start delay (seconds). How long to wait before calling back? Default is 5 seconds.
 ````
 # search for this line in galleon.go
-    var callbackTimer = CallbackInfo{Callback_freq: 1, Jitter: 15, SelfTerminate: 20}
+var callbackTimer = CallbackInfo{Callback_freq: 1, Jitter: 15, SelfTerminate: 20, StartDelay: 5}
 ````
 - Edit the ip address/domain you want the agent to call back to
 ````

