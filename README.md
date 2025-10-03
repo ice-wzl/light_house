@@ -14,6 +14,17 @@ later for trade. Galleons were mainly square-rigged and usually had three or mor
 ## Setup
 ````
 git clone https://github.com/ice-wzl/light_house.git
+cd light_house
+# create virtual enviroment
+pip3 install -r requirements.txt
+cd server
+python3 -m uvicorn lighthouse:app --reload                          ✹main 
+INFO:     Will watch for changes in these directories: ['/home/kali/Documents/research/light_house/server']
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     Started reloader process [20251] using WatchFiles
+INFO:     Started server process [20253]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
 ````
 ### Gelleon Agent Setup
 ````
