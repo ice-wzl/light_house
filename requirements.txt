@@ -1,8 +1,9 @@
-fastapi==0.115.12
+fastapi==0.118.0
 httpx==0.28.1
-python-jose==3.4.0
+python-jose[cryptography]==3.4.0
 prettytable==3.16.0
-prompt_toolkit==3.0.51
-pydantic==2.11.7
-SQLAlchemy==2.0.41
-python-multipart==0.0.20
+prompt_toolkit==3.0.52
+pydantic==2.11.9
+SQLAlchemy==2.0.43
+uvicorn[standard]
+python-multipart
