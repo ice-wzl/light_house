@@ -178,15 +178,19 @@ def authenticate(username: str, password: str, server: str) -> str:
         "client_secret": "string",
     }
 
-    response = httpx.post(url, headers=headers, data=data, verify=False)
+    try:
+        response = httpx.post(url, headers=headers, data=data, verify=False)
 
-    if response.status_code == 200:
-        response_data = response.json()
-        token = response_data["access_token"]
-        return token
-    elif response.status_code == 401:
-        print_formatted_text("[*] Invalid credentials")
+        if response.status_code == 200:
+            response_data = response.json()
+            token = response_data["access_token"]
+            return token
+        elif response.status_code == 401:
+            print_formatted_text("[*] Invalid credentials")
+            sys.exit(1)
+        else:
+            print_formatted_text(response.status_code, response.text, response)
+            return ""
+    except httpx.ConnectError as e:
+        print_formatted_text("[-] Connection Refused to Lighthouse")
         sys.exit(1)
-    else:
-        print_formatted_text(response.status_code, response.text, response)
-        return ""

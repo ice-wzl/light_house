@@ -13,18 +13,12 @@ later for trade. Galleons were mainly square-rigged and usually had three or mor
 ````
 ## Setup
 ````
+apt install upx
 git clone https://github.com/ice-wzl/light_house.git
 cd light_house
-# create virtual enviroment
+# create virtual env 
+python3 -m venv venv
 pip3 install -r requirements.txt
-cd server
-python3 -m uvicorn lighthouse:app --reload                          ✹main 
-INFO:     Will watch for changes in these directories: ['/home/kali/Documents/research/light_house/server']
-INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
-INFO:     Started reloader process [20251] using WatchFiles
-INFO:     Started server process [20253]
-INFO:     Waiting for application startup.
-INFO:     Application startup complete.
 ````
 ### Gelleon Agent Setup
 ````
@@ -44,47 +38,30 @@ var callbackTimer = CallbackInfo{Callback_freq: 1, Jitter: 15, SelfTerminate: 20
 # search for this line in galleon.go
 	serverUrl := "http://192.168.15.172:8000"
 ````
-- build agent
+- Build agent with the provided agent build script
+- This build script will compile the binary to the smallest possible size, stripping debug information and adding upx compression
 ````
-go build
-#OR specific arch 
-GOARCH=<arch> GOOS=<linux> go build
+python3 build_agent.py -a <ARCH>
 ````
+- You will find the final binary in the `build/` directory which will get created during compile time.
 ## Lighhouse Setup
 ````
-python3 -m venv venv
 cd server
 ````
 - Setup virtual env
 ````
-source ../venv/bin/activaate
-pip3 install -r ../requirements.txt 
-pip3 install uvicorn
 # run the server
-uvicorn lighthouse:app --reload
+python3 -m uvicorn lighthouse:app --reload --host 0.0.0.0 --port 8000
 INFO:     Will watch for changes in these directories: ['/opt/light_house/server']
-INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
 INFO:     Started reloader process [1100534] using StatReload
 INFO:     Started server process [1100536]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
 ````
-- by default it will run the server on 127.0.0.1:8000
-- to bind the server to another interface
-````
-uvicorn lighthouse:app --reload --host 0.0.0.0 --port 8000                                                               2 ↵
-INFO:     Will watch for changes in these directories: ['/opt/light_house/server']
-INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
-INFO:     Started reloader process [1101158] using StatReload
-INFO:     Started server process [1101160]
-INFO:     Waiting for application startup.
-INFO:     Application startup complete.
-````
-
 ## Merchant Client Setup
 ````
 cd client
-source ../venv/bin/activate 
 python3 merchant.py -h
 usage: merchant.py [-h] -u USERNAME -p PASSWORD -s SERVER
 

@@ -61,54 +61,48 @@ def command_router(cmd: str, args: list, token: str, server: str) -> None:
     :param server: The lighthouse server address
     :return: None
     """
-    if cmd == "sessions":
-        get_sessions(token, server)
-
-    elif cmd == "quit":
-        print_formatted_text("[*] Goodbye...")
-        sys.exit(2)
-
-    elif cmd == "users":
-        get_users(token, server)
-
-    elif cmd == "user_add":
-        if len(args) == 2:
-            user_add(token, server, args[0], args[1])
-        else:
-            print_formatted_text(
-                "[*] Expecting username and password -> user_add <username> <password>"
-            )
-
-    elif cmd == "user_delete":
-        if len(args) == 1:
-            user_delete(token, server, args[0])
-        else:
-            print_formatted_text("[*] Expecting user id -> user_delete <user-id>")
-
-    elif cmd == "user":
-        if len(args) == 1:
-            get_user(token, server, args[0])
-        else:
-            print_formatted_text("[*] Expecting user id -> user <user-id>")
-
-    elif cmd == "interact":
-        if len(args) == 1:
-            session_id = args[0]
-            valid_agent = test_session(token, server, session_id)
-            if valid_agent == 200:
-                interact_implant(token, server, session_id)
-            elif valid_agent == 404:
-                print_formatted_text("[*] Invalid session ID")
-            elif valid_agent == 410:
-                print_formatted_text("[*] Implant is dead")
-        else:
-            print_formatted_text("[*] Expecting session id -> interact <session-id>")
-
-    elif cmd == "tasking":
-        if len(args) == 1:
-            get_tasking(token, args[0], server)
-        else:
-            print_formatted_text("[*] Expecting session id -> tasking <session-id>")
+    match cmd:
+        case "sessions":
+            get_sessions(token, server)
+        case "quit":
+            print_formatted_text("[*] Goodbye...")
+            sys.exit(2)
+        case "users":
+            get_users(token, server)
+        case "user_add":
+            if len(args) == 2:
+                user_add(token, server, args[0], args[1])
+            else:
+                print_formatted_text(
+                    "[*] Expecting username and password -> user_add <username> <password>"
+                )
+        case "user_delete":
+            if len(args) == 1:
+                user_delete(token, server, args[0])
+            else:
+                print_formatted_text("[*] Expecting user id -> user_delete <user-id>")
+        case "user":
+            if len(args) == 1:
+                get_user(token, server, args[0])
+            else:
+                print_formatted_text("[*] Expecting user id -> user <user-id>")
+        case "interact":
+            if len(args) == 1:
+                session_id = args[0]
+                valid_agent = test_session(token, server, session_id)
+                if valid_agent == 200:
+                    interact_implant(token, server, session_id)
+                elif valid_agent == 404:
+                    print_formatted_text("[*] Invalid session ID")
+                elif valid_agent == 410:
+                    print_formatted_text("[*] Implant is dead")
+            else:
+                print_formatted_text("[*] Expecting session id -> interact <session-id>")
+        case "tasking":
+            if len(args) == 1:
+                get_tasking(token, args[0], server)
+            else:
+                print_formatted_text("[*] Expecting session id -> tasking <session-id>")
 
 
 def driver(username: str, password: str, server: str):
