@@ -1,3 +1,4 @@
+db/database.db
 venv/*
 __pycache__/*
 client/__pycache__/*
