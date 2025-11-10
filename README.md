@@ -6,7 +6,8 @@
 </p>
 
 - LightHouse is in Alpha release, if you encounter an issue or have a suggestion, open an issue ticket or create a PR!
-
+![Build](https://github.com/ice-wzl/light_house/actions/workflows/ci.yml/badge.svg)
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 ## Design
 - light_house is broken up into four general components
 - The python server called lighthouse, the go agent called galleon, the python client called merchant, and the sqlite database.
