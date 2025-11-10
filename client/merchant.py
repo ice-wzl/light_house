@@ -74,41 +74,63 @@ def command_router(cmd: str, args: list, server: str) -> None:
         case "users":
             get_users(token, server)
         case "user_add":
-            if len(args) == 2:
-                user_add(token, server, args[0], args[1])
-            else:
-                print_formatted_text(
-                    "[*] Expecting username and password -> user_add <username> <password>"
-                )
+            handle_user_add(args, token, server)
         case "user_delete":
-            if len(args) == 1:
-                user_delete(token, server, args[0])
-            else:
-                print_formatted_text("[*] Expecting user id -> user_delete <user-id>")
+            handle_user_delete(args, token, server)
         case "user":
-            if len(args) == 1:
-                get_user(token, server, args[0])
-            else:
-                print_formatted_text("[*] Expecting user id -> user <user-id>")
+            handle_user(args, token, server)
         case "interact":
             if len(args) == 1:
-                session_id = args[0]
-                valid_agent = test_session(token, server, session_id)
-                if valid_agent == 200:
-                    interact_implant(token, server, session_id)
-                elif valid_agent == 404:
-                    print_formatted_text("[*] Invalid session ID")
-                elif valid_agent == 410:
-                    print_formatted_text("[*] Implant is dead")
+                handle_interact(args, token, server, session_id)
             else:
                 print_formatted_text(
                     "[*] Expecting session id -> interact <session-id>"
                 )
         case "tasking":
-            if len(args) == 1:
-                get_tasking(token, args[0], server)
-            else:
-                print_formatted_text("[*] Expecting session id -> tasking <session-id>")
+            handle_tasking(args, token, server)
+
+
+def handle_user_delete(args: list, token: str, server: str):
+    if len(args) == 1:
+        user_delete(token, server, args[0])
+    else:
+        print_formatted_text("[*] Expecting user id -> user_delete <user-id>")
+
+
+def handle_user_add(args: list, token, server):
+    if len(args) == 2:
+        user_add(token, server, args[0], args[1])
+    else:
+        print_formatted_text(
+            "[*] Expecting username and password -> user_add <username> <password>"
+        )
+
+
+def handle_user(args: list, token: str, server: str):
+    if len(args) == 1:
+        get_user(token, server, args[0])
+    else:
+        print_formatted_text("[*] Expecting user id -> user <user-id>")
+
+
+# switch is likely better suited here
+def handle_interact(args: list, token: str, server: str, session_id: str):
+    session_id = args[0]
+    valid_agent = test_session(token, server, session_id)
+    if valid_agent == 200:
+        interact_implant(token, server, session_id)
+    elif valid_agent == 404:
+        print_formatted_text("[*] Invalid session ID")
+    elif valid_agent == 410:
+        print_formatted_text("[*] Implant is dead")
+
+
+
+def handle_tasking(args: list, token: str, server: str):
+    if len(args) == 1:
+        get_tasking(token, args[0], server)
+    else:
+        print_formatted_text("[*] Expecting session id -> tasking <session-id>")
 
 
 def auth_timer(seconds: int, username: str, password: str, server: str):
