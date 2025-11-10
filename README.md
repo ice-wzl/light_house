@@ -6,9 +6,9 @@
 </p>
 - LightHouse is in Alpha release, if you encounter an issue or have a suggestion, open an issue ticket or create a PR!
 ## Design
-light_house is broken up into four general components
-The python server called lighthouse, the go agent called galleon, the python client called merchant, and the sqlite database.
-I am hoping to add more agents in the future with similar capabilities to the galleon agent.
+- light_house is broken up into four general components
+- The python server called lighthouse, the go agent called galleon, the python client called merchant, and the sqlite database.
+- I am hoping to add more agents in the future with similar capabilities to the galleon agent.
 
 ## The Theme
 The project has a nautical based theme for components. The theme for the agents is based on 15th-17th century ship classes.
