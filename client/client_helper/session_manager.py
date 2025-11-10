@@ -20,6 +20,18 @@ from client_helper.user_manager import fix_date
 from client_helper.tasking_manager import get_tasking, send_task
 from client_helper.tasking_manager import format_args
 
+from client_helper.help_manager import print_info_help
+from client_helper.help_manager import print_download_help
+from client_helper.help_manager import print_exec_bg_help
+from client_helper.help_manager import print_exec_fg_help
+from client_helper.help_manager import print_kill_help
+from client_helper.help_manager import print_ls_help
+from client_helper.help_manager import print_process_list_help
+from client_helper.help_manager import print_reconfig_help
+from client_helper.help_manager import print_tasking_help
+from client_helper.help_manager import print_upload_help
+from client_helper.help_manager import print_view_help
+
 # colors for the sessions prompt
 style_session = Style.from_dict(
     {
@@ -227,6 +239,7 @@ def get_sessions(token: str, server: str) -> None:
     except httpx.ConnectError as e:
         print_formatted_text("[-] Connection Refused to Lighthouse")
 
+
 def test_session(token: str, server: str, session: str) -> int:
     """
     Test if a session id is a valid session (either alive or dead) with the lighthouse server
@@ -361,25 +374,25 @@ def session_router(
         case "info":
             get_session(token, server, session_id)
         case "ls":
-           handle_ls(token, server, session_id, args) 
+            handle_ls(token, server, session_id, args)
         case "tasking":
             get_tasking(token, session_id, server)
         case "ps":
             send_task(token, server, session_id, "ps", "")
         case "exec_fg":
-           handle_exec_fg(token, server, session_id, args) 
+            handle_exec_fg(token, server, session_id, args)
         case "exec_bg":
-           handle_exec_bg(token, server, session_id, args) 
+            handle_exec_bg(token, server, session_id, args)
         case "reconfig":
-           handle_reconfig(token, server, session_id, args) 
+            handle_reconfig(token, server, session_id, args)
         case "view":
-           handle_view(token, server, session_id, args) 
+            handle_view(token, server, session_id, args)
         case "kill":
-           handle_kill(token, server, session_id) 
+            handle_kill(token, server, session_id)
         case "download":
-           handle_download(token, server, session_id, args) 
+            handle_download(token, server, session_id, args)
         case "upload":
-           handle_upload(token, server, session_id, args) 
+            handle_upload(token, server, session_id, args)
         case "help":
             handle_help(args)
 
@@ -415,114 +428,6 @@ def handle_help(args: list):
             print_upload_help()
 
 
-def print_info_help():
-    print_formatted_text("------------------------------------------")
-    print_formatted_text("|              INFO HELP                 |")
-    print_formatted_text("------------------------------------------")
-    print(colored("info", attrs=["bold"])+" - See basic imlant information")
-    print(colored("help info", attrs=["bold"])+" - See this help menu")
-    print_formatted_text("------------------------------------------")
-
-
-def print_ls_help():
-    print_formatted_text("------------------------------------------")
-    print_formatted_text("|                LS HELP                 |")
-    print_formatted_text("------------------------------------------")
-    print_formatted_text("ls - See directory listing")
-    print_formatted_text("\tExample: ls /")
-    print_formatted_text("\thelp ls - See this help menu")
-    print_formatted_text("------------------------------------------")
-
-  
-def print_tasking_help():
-    print_formatted_text("------------------------------------------")
-    print_formatted_text("|           TASKING HELP                 |")
-    print_formatted_text("------------------------------------------")
-    print_formatted_text("tasking - See pending and completed implant tasks")
-    print_formatted_text("\tExample: tasking")
-    print_formatted_text("\thelp tasking - See this help menu")
-    print_formatted_text("------------------------------------------")
-
-
-def print_process_list_help():
-    print_formatted_text("------------------------------------------")
-    print_formatted_text("|              PS HELP                   |")
-    print_formatted_text("------------------------------------------")
-    print_formatted_text("info - See process listing")
-    print_formatted_text("\thelp ps - See this help menu")
-    print_formatted_text("------------------------------------------")
-
-
-def print_exec_bg_help():
-    print_formatted_text("------------------------------------------")
-    print_formatted_text("|            EXEC_BG HELP                |")
-    print_formatted_text("------------------------------------------")
-    print_formatted_text("exec_bg - Execute command without stdout / stderr returned")
-    print_formatted_text("\tExample:  exec_bg '/usr/bin/implant'")
-    print_formatted_text("\thelp exec_bg - See this help menu")
-    print_formatted_text("------------------------------------------")
-
-
-def print_exec_fg_help():
-    print_formatted_text("------------------------------------------")
-    print_formatted_text("|           EXEC_FG HELP                 |")
-    print_formatted_text("------------------------------------------")
-    print_formatted_text("exec_fg - Execute command with stdout / stderr returned")
-    print_formatted_text("\tExample: exec_fg \"/bin/sh -c 'uname -a'\"")
-    print_formatted_text("\t exec_fg \"exec_fg 'netstat -antpu'")
-    print_formatted_text("\thelp exec_fg - See this help menu")
-    print_formatted_text("------------------------------------------")
-
-
-def print_reconfig_help():
-    print_formatted_text("------------------------------------------")
-    print_formatted_text("|           RECONFIG HELP                |")
-    print_formatted_text("------------------------------------------")
-    print_formatted_text("reconfig - Change implant callback interval, jitter, max errors")
-    print_formatted_text("\tExample:  reconfig <cb interval> <jitter> <max errors>")
-    print_formatted_text("\thelp reconfig - See this help menu")
-    print_formatted_text("------------------------------------------")
-
-def print_view_help():
-    print_formatted_text("------------------------------------------")
-    print_formatted_text("|              VIEW HELP                 |")
-    print_formatted_text("------------------------------------------")
-    print_formatted_text("view - View results of an implant task")
-    print_formatted_text("\tExample:  view <task-id>")
-    print_formatted_text("\thelp view - See this help menu")
-    print_formatted_text("------------------------------------------")
-
-
-def print_kill_help():
-    print_formatted_text("------------------------------------------")
-    print_formatted_text("|              KILL HELP                 |")
-    print_formatted_text("------------------------------------------")
-    print_formatted_text("kill - Terminate the running agent process")
-    print_formatted_text("\tExample:  kill")
-    print_formatted_text("\thelp kill - See this help menu")
-    print_formatted_text("------------------------------------------")
-
-
-def print_download_help():
-    print_formatted_text("------------------------------------------")
-    print_formatted_text("|           DOWNLOAD HELP                |")
-    print_formatted_text("------------------------------------------")
-    print_formatted_text("download - Download remote file from target")
-    print_formatted_text("\tExample:  download /etc/shadow")
-    print_formatted_text("\thelp download - See this help menu")
-    print_formatted_text("------------------------------------------")
-
-def print_upload_help():
-    print_formatted_text("------------------------------------------")
-    print_formatted_text("|             UPLOAD HELP                |")
-    print_formatted_text("------------------------------------------")
-    print_formatted_text("upload - Upload local file to the target")
-    print_formatted_text("\tExample:  upload /path/loca.txt /path/remote.txt")
-    print_formatted_text("\thelp upload - See this help menu")
-    print_formatted_text("------------------------------------------")
-
-
-
 def handle_ls(token: str, server: str, session_id: str, args: list) -> None:
     if len(args) == 1:
         send_task(token, server, session_id, "ls", args[0])
@@ -547,11 +452,15 @@ def handle_exec_bg(token: str, server: str, session_id: str, args: list):
 def handle_reconfig(token: str, server: str, session_id: str, args: list) -> None:
     # ensure we have all arguments
     if len(args) != 3:
-        print_formatted_text("[*] Expecting reconfig <callback freq> <jitter> <max errors>")
+        print_formatted_text(
+            "[*] Expecting reconfig <callback freq> <jitter> <max errors>"
+        )
         return
-    
+
     if not validate_reconfig(args):
-        print_formatted_text("[*] Expecting int values for <callback freq> <jitter> <max errors>")
+        print_formatted_text(
+            "[*] Expecting int values for <callback freq> <jitter> <max errors>"
+        )
         return
 
     if not validate_reconfig_values(args):
@@ -568,7 +477,9 @@ def handle_view(token: str, server: str, session_id: str, args: list) -> None:
 
 
 def handle_kill(token: str, server: str, session_id: str) -> None:
-    print_formatted_text(f"[!!!] Are you sure you want to terminate {session_id}: [y/N]")
+    print_formatted_text(
+        f"[!!!] Are you sure you want to terminate {session_id}: [y/N]"
+    )
     get_choice = input("--> ")
     if get_choice.upper() == "" or get_choice.upper() == "N":
         return
@@ -576,7 +487,7 @@ def handle_kill(token: str, server: str, session_id: str) -> None:
         send_task(token, server, session_id, "kill", "")
 
 
-def handle_download(token:str, server: str, session_id: str, args: list) -> None:
+def handle_download(token: str, server: str, session_id: str, args: list) -> None:
     if len(args) == 1:
         send_task(token, server, session_id, "download", args[0])
     else:
@@ -590,10 +501,14 @@ def handle_upload(token: str, server: str, session_id: str, args: list) -> None:
         dst_path = format_args(args[1])
         success, binary_to_send = process_upload_binary(args[0])
         if success:
-            send_task(token, server, session_id, "upload", dst_path + ":" + binary_to_send)
+            send_task(
+                token, server, session_id, "upload", dst_path + ":" + binary_to_send
+            )
             return
         else:
-            print_formatted_text("[*] Expecting command -> upload '/full/path/src.txt' '/full/path/dst.txt'")
+            print_formatted_text(
+                "[*] Expecting command -> upload '/full/path/src.txt' '/full/path/dst.txt'"
+            )
 
 
 def format_upload_binary(bin_contents: bytes) -> str:

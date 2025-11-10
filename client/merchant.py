@@ -97,7 +97,9 @@ def command_router(cmd: str, args: list, token: str, server: str) -> None:
                 elif valid_agent == 410:
                     print_formatted_text("[*] Implant is dead")
             else:
-                print_formatted_text("[*] Expecting session id -> interact <session-id>")
+                print_formatted_text(
+                    "[*] Expecting session id -> interact <session-id>"
+                )
         case "tasking":
             if len(args) == 1:
                 get_tasking(token, args[0], server)

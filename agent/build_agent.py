@@ -1,10 +1,23 @@
 #!/usr/bin/python3
-import argparse 
+import argparse
 import subprocess
 import os
 
-archs =["386", "arm", "mips", "mipsle", "arm64", "amd64", "loong64", 
-        "mips64", "mips64le", "ppc64", "ppc64le", "riscv64le", "s390x"]
+archs = [
+    "386",
+    "arm",
+    "mips",
+    "mipsle",
+    "arm64",
+    "amd64",
+    "loong64",
+    "mips64",
+    "mips64le",
+    "ppc64",
+    "ppc64le",
+    "riscv64le",
+    "s390x",
+]
 BUILD_DIR = "build"
 
 
@@ -23,7 +36,7 @@ def build_galleon(arch: str):
     OUTFILE = f"galleon_{arch}.elf"
 
     cmd = ["go", "build", "-ldflags=-s -w", "-o", f"{BUILD_DIR}/{OUTFILE}"]
-    
+
     proc = subprocess.run(cmd, capture_output=True, check=False)
     print("-----GO BUILD STDOUT-----")
     print(proc.stdout)
@@ -45,12 +58,20 @@ def upx_compress(OUTFILE: str):
     print(proc.stderr)
 
 
-if __name__ == '__main__':
-    opts = argparse.ArgumentParser(prog="build_agent.py", description='Builder for the Galleon agent')
-    opts.add_argument("-a", "--arch", choices=archs, help="The arch to build Galleon with", required=True, dest="arch", type=str)
+if __name__ == "__main__":
+    opts = argparse.ArgumentParser(
+        prog="build_agent.py", description="Builder for the Galleon agent"
+    )
+    opts.add_argument(
+        "-a",
+        "--arch",
+        choices=archs,
+        help="The arch to build Galleon with",
+        required=True,
+        dest="arch",
+        type=str,
+    )
     args = opts.parse_args()
 
     build_dir_setup()
     build_galleon(args.arch)
-
-

@@ -230,13 +230,13 @@ def create_results(
         decoded_args = ""
     results_data = results.model_dump(exclude={"session", "date"})
     results_data["args"] = decoded_args
-    
+
     if results_data["task"] == "reconfig":
         update_callback_freq(session, results_data, db)
-        #new_callback_freq = results_data["args"].split(" ")[0]
+        # new_callback_freq = results_data["args"].split(" ")[0]
     # need to update callback interval...
-    #implant = db.query(Implant).filter(Implant.session == session).first()
-    #if implant is not None and implant.alive:
+    # implant = db.query(Implant).filter(Implant.session == session).first()
+    # if implant is not None and implant.alive:
     #    implant.callback_freq = new_callback_freq
     #    db.commit()
     #    db.refresh(implant)
@@ -262,7 +262,7 @@ def create_results(
     return db_task
 
 
-def update_callback_freq(session: str, results_data: dict, db: SessionLocal = Depends(get_db)): # type: ignore
+def update_callback_freq(session: str, results_data: dict, db: SessionLocal = Depends(get_db)):  # type: ignore
     new_callback_freq = results_data["args"].split(" ")[0]
     implant = db.query(Implant).filter(Implant.session == session).first()
     if implant is not None and implant.alive:
