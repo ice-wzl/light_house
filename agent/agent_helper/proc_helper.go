@@ -1,4 +1,4 @@
-package main
+package agent_helper
 
 import (
 	"fmt"

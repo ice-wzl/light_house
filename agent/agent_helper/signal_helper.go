@@ -1,4 +1,4 @@
-package main
+package agent_helper
 
 import (
 	"fmt"
@@ -8,17 +8,17 @@ import (
 )
 
 // Setup the signal channel
-func setupSignalHandler() chan os.Signal {
+func SetupSignalHandler() chan os.Signal {
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGTERM, syscall.SIGINT)
 	return sigChan
 }
 
 // Send a "death message" to the server
-func sendDeathMessage(serverAddr string, session string) (int, error) {
+func SendDeathMessage(serverAddr string, session string) (int, error) {
 	url := fmt.Sprintf("%s/health/d/%s", serverAddr, session)
 
-	resp, err := customClient.Get(url)
+	resp, err := CustomClient.Get(url)
 	if err != nil {
 		return 0, err
 	}
@@ -27,11 +27,11 @@ func sendDeathMessage(serverAddr string, session string) (int, error) {
 }
 
 // Start signal handling goroutine
-func sigHandler(serverAddr string, session string) {
-	sigChan := setupSignalHandler()
+func SigHandler(serverAddr string, session string) {
+	sigChan := SetupSignalHandler()
 	go func() {
 		_ = <-sigChan
-		sendDeathMessage(serverAddr, session)
+		SendDeathMessage(serverAddr, session)
 		os.Exit(5)
 	}()
 }

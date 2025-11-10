@@ -1,4 +1,4 @@
-package main
+package agent_helper
 
 import (
 	"fmt"
@@ -7,7 +7,7 @@ import (
 )
 
 func LsHandler(serverUrl string, taskData map[string]interface{}) {
-	dir, err := listDirectories(taskData["args"].(string))
+	dir, err := ListDirectories(taskData["args"].(string))
 	if err != nil {
 		DataShipper(serverUrl, taskData, err.Error())
 		return
@@ -15,7 +15,7 @@ func LsHandler(serverUrl string, taskData map[string]interface{}) {
 	DataShipper(serverUrl, taskData, dir)
 }
 
-func listDirectories(directory string) (string, error) {
+func ListDirectories(directory string) (string, error) {
 	fileList := ""
 	dir, err := os.Open(directory)
 	if err != nil {
