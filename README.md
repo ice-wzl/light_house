@@ -1,5 +1,5 @@
 # light_house
-<img width="1024" height="1024" alt="ChatGPT Image Nov 10, 2025, 05_40_13 PM" src="https://github.com/user-attachments/assets/549396a2-12f9-40d0-b243-412365335327" />
+<img width="512" height="512" alt="ChatGPT Image Nov 10, 2025, 05_40_13 PM" src="https://github.com/user-attachments/assets/549396a2-12f9-40d0-b243-412365335327" />
 
 - LightHouse is in Alpha release, if you encounter an issue or have a suggestion, open an issue ticket or create a PR!
 ## Design
