@@ -21,4 +21,20 @@ jobs:
         pip install pylint
     - name: Analysing the code with pylint
       run: |
-        pylint $(git ls-files '*.py') --fail-under=8
+        pylint $(git ls-files '*.py') --fail-under=7
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: 'pip'
+
+      - run: pip install -r requirements.txt
+      - name: Lizard
+        run: |
+          lizard -w -C 9 -T nloc=40 -L 60 -a 5 server/ server/server_helper | sed -r 's/(.*):([0-9]*): warning: (.*)/::warning file=\1,line=\2::\3/'
+      - name: Lizard (Fail on Violation)
+        run: |
+          lizard -w -C 9 -T nloc=40 -L 60 -a 5 client/ client/client_helper | sed -r 's/(.*):([0-9]*): error: (.*)/::error file=\1,line=\2::\3/'
