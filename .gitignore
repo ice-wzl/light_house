@@ -1,3 +1,4 @@
+client/.auth-token
 db/database.db
 venv/*
 __pycache__/*

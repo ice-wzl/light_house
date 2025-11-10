@@ -7,7 +7,7 @@ CREATE TABLE implants (
     last_checkin TEXT,
     alive BOOLEAN,
     callback_freq INTEGER, -- Minutes
-    jitter INTEGER,         -- Integer treated as % of callback_freq
+    jitter INTEGER,        -- Integer treated as % of callback_freq
     username TEXT,
     hostname TEXT
 );

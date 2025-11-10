@@ -8,7 +8,6 @@ import io
 import os
 
 from prettytable import PrettyTable
-from termcolor import colored
 
 from prompt_toolkit import PromptSession
 from prompt_toolkit.completion import WordCompleter

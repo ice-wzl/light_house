@@ -2,8 +2,9 @@ import argparse
 import logging
 import shlex
 import sys
+import threading
 
-
+from time import sleep
 from prompt_toolkit import PromptSession
 from prompt_toolkit.completion import WordCompleter
 from prompt_toolkit.styles import Style
@@ -52,7 +53,7 @@ completer_server = WordCompleter(
 )
 
 
-def command_router(cmd: str, args: list, token: str, server: str) -> None:
+def command_router(cmd: str, args: list, server: str) -> None:
     """
     Routes commands to their respective handlers based on the command name
     :param cmd: The command to execute
@@ -61,6 +62,9 @@ def command_router(cmd: str, args: list, token: str, server: str) -> None:
     :param server: The lighthouse server address
     :return: None
     """
+    with open(".auth-token", "r") as fp:
+        token = fp.read()
+
     match cmd:
         case "sessions":
             get_sessions(token, server)
@@ -107,6 +111,14 @@ def command_router(cmd: str, args: list, token: str, server: str) -> None:
                 print_formatted_text("[*] Expecting session id -> tasking <session-id>")
 
 
+def auth_timer(seconds: int, username: str, password: str, server: str):
+    sleep(seconds - 120)
+    token = authenticate(username, password, server)
+    with open(".auth-token", "w") as fp:
+        fp.write(token)
+    return token
+
+
 def driver(username: str, password: str, server: str):
     """
     Main driver to handle the user input and pass to the command router
@@ -116,6 +128,8 @@ def driver(username: str, password: str, server: str):
     :return: None
     """
     token = authenticate(username, password, server)
+    timer_thread = threading.Thread(target=auth_timer, args=(1800,username, password, server,), daemon=True)
+    timer_thread.start()
 
     session = PromptSession()
     print_formatted_text("[+] Enter commands to see available commands")
@@ -136,7 +150,7 @@ def driver(username: str, password: str, server: str):
 
         cmd = parsed[0].lower()
         args = parsed[1:]
-        command_router(cmd, args, token, server)
+        command_router(cmd, args, server)
 
 
 if __name__ == "__main__":
