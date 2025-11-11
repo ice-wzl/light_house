@@ -84,6 +84,34 @@ def reformat_upload(input: str) -> str:
     return ''.join(src_file + " " + dst_file)
 
 
+def create_tasking_table(json_data: list):
+    table = PrettyTable()
+    table.field_names = [
+        "ID",
+        "Session",
+        "Date Sent",
+        "Task",
+        "Args",
+        "Complete",
+    ]
+    for tasking in json_data:
+        id = tasking.get("id")
+        session_id = tasking.get("session")
+        date_sent = tasking.get("date")
+        if date_sent != "Null":
+            date_sent_formatted = fix_date(date_sent)
+        task = tasking.get("task")
+        if task == "upload":
+            args = reformat_upload(tasking.get("args"))
+        else:
+            args = tasking.get("args")
+        complete = tasking.get("complete")
+        table.add_row(
+            [id, session_id, date_sent_formatted, task, args, complete]
+        )
+    return table
+
+
 def get_tasking(token: str, session: str, server: str) -> None:
     """
     Retrieves tasking for a specific session from the lighthouse server.
@@ -101,35 +129,7 @@ def get_tasking(token: str, session: str, server: str) -> None:
     if response.status_code == 200:
         json_data = response.json()
         if isinstance(json_data, list):
-            table = PrettyTable()
-            table.field_names = [
-                "ID",
-                "Session",
-                "Date Sent",
-                "Task",
-                "Args",
-                "Complete",
-            ]
-            for tasking in json_data:
-                id = tasking.get("id")
-                session_id = tasking.get("session")
-                date_sent = tasking.get("date")
-                if date_sent != "Null":
-                    date_sent_formatted = fix_date(date_sent)
-                task = tasking.get("task")
-                if task == "upload":
-                    args = reformat_upload(tasking.get("args"))
-                else:
-                    args = tasking.get("args")
-
-                # YOU HAVE A BUG HERE FOR UPLOAD YOU SEND THE ENCODED FILE AS ARG...IT BREAKS MERCHANT
-                # out need to send file name to upload as i.e. dest path : filename
-                # and then when you display upload you can stop after
-                complete = tasking.get("complete")
-                table.add_row(
-                    [id, session_id, date_sent_formatted, task, args, complete]
-                )
-            print_formatted_text(table)
+            print_formatted_text(create_tasking_table(json_data))
         else:
             print_formatted_text("[*] Unknown data returned")
             print_formatted_text(json_data)
