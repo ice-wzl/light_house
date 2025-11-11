@@ -80,12 +80,7 @@ def command_router(cmd: str, args: list, server: str) -> None:
         case "user":
             handle_user(args, token, server)
         case "interact":
-            if len(args) == 1:
-                handle_interact(args, token, server, session_id)
-            else:
-                print_formatted_text(
-                    "[*] Expecting session id -> interact <session-id>"
-                )
+            handle_interact(args, token, server)                
         case "tasking":
             handle_tasking(args, token, server)
 
@@ -115,14 +110,19 @@ def handle_user(args: list, token: str, server: str):
 
 # switch is likely better suited here
 def handle_interact(args: list, token: str, server: str, session_id: str):
-    session_id = args[0]
-    valid_agent = test_session(token, server, session_id)
-    if valid_agent == 200:
-        interact_implant(token, server, session_id)
-    elif valid_agent == 404:
-        print_formatted_text("[*] Invalid session ID")
-    elif valid_agent == 410:
-        print_formatted_text("[*] Implant is dead")
+    if len(args) == 1:
+        session_id = args[0]
+        valid_agent = test_session(token, server, session_id)
+        if valid_agent == 200:
+            interact_implant(token, server, session_id)
+        elif valid_agent == 404:
+            print_formatted_text("[*] Invalid session ID")
+        elif valid_agent == 410:
+            print_formatted_text("[*] Implant is dead")
+    else:
+        print_formatted_text(
+            "[*] Expecting session id -> interact <session-id>"
+        )
 
 
 
