@@ -498,16 +498,17 @@ def handle_upload(token: str, server: str, session_id: str, args: list) -> None:
         # get binary formatted properly and ship it here as args[0]
         # we also should specify what to name it likely need another arg here
         dst_path = format_args(args[1])
+        src_path = format_args(args[0])
         success, binary_to_send = process_upload_binary(args[0])
         if success:
             send_task(
-                token, server, session_id, "upload", dst_path + ":" + binary_to_send
+                token, server, session_id, "upload", src_path + "," + dst_path + ":" + binary_to_send
             )
             return
-        else:
-            print_formatted_text(
-                "[*] Expecting command -> upload '/full/path/src.txt' '/full/path/dst.txt'"
-            )
+    else:
+        print_formatted_text(
+            "[*] Expecting command -> upload '/full/path/src.txt' '/full/path/dst.txt'"
+        )
 
 
 def format_upload_binary(bin_contents: bytes) -> str:

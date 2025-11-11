@@ -77,7 +77,11 @@ def send_task(token: str, server: str, session: str, tasking: str, args: str) ->
 
 def reformat_upload(input: str) -> str:
     args_split = input.split(":")
-    return format_output(args_split[0])
+    # [0] hexstr,hexstr (src file, dst file)
+    # [1] hexstr (the file content to upload)
+    src_file = format_output(args_split[0].split(",")[0])
+    dst_file = format_output(args_split[0].split(",")[1])
+    return ''.join(src_file + " " + dst_file)
 
 
 def get_tasking(token: str, session: str, server: str) -> None:
