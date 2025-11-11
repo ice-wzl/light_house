@@ -109,7 +109,7 @@ def handle_user(args: list, token: str, server: str):
 
 
 # switch is likely better suited here
-def handle_interact(args: list, token: str, server: str, session_id: str):
+def handle_interact(args: list, token: str, server: str):
     if len(args) == 1:
         session_id = args[0]
         valid_agent = test_session(token, server, session_id)
