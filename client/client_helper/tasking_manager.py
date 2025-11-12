@@ -31,7 +31,11 @@ def format_args(args: str) -> str:
     based = base64.b64encode(args.encode("utf-8"))
     return based.hex()
 
-
+'''
+send_task(
+                token, server, session_id, "upload", src_path + "," + dst_path + ":" + binary_to_send
+         )
+'''
 def send_task(token: str, server: str, session: str, tasking: str, args: str) -> None:
     """
     Sends a task to the lighthouse server for a specific session.
@@ -42,7 +46,11 @@ def send_task(token: str, server: str, session: str, tasking: str, args: str) ->
     :param args: The arguments for the task
     :return: None
     """
+    # DEBUGGING
+    print(f"ARGS: {args}")
+
     argsf = format_args(args)
+    print(f"ARGSF: {argsf}")
     url = f"https://{server}/tasking/{session}"
     headers = {
         "accept": "application/json",
@@ -77,11 +85,7 @@ def send_task(token: str, server: str, session: str, tasking: str, args: str) ->
 
 def reformat_upload(input: str) -> str:
     args_split = input.split(":")
-    # [0] hexstr,hexstr (src file, dst file)
-    # [1] hexstr (the file content to upload)
-    src_file = format_output(args_split[0].split(",")[0])
-    dst_file = format_output(args_split[0].split(",")[1])
-    return ''.join(src_file + " " + dst_file)
+    return format_output(args_split[0])
 
 
 def create_tasking_table(json_data: list):
