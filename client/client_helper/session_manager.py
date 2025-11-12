@@ -127,42 +127,43 @@ def get_result(token: str, server: str, session: str, id: int) -> None:
     }
 
     response = httpx.get(url, headers=headers, verify=False)
-    if response.status_code == 404:
-        print_formatted_text(f"[*] Session id {session} not found!")
-    elif response.status_code == 416:
-        print_formatted_text(f"[*] ID {id} not found for session {session}")
-    elif (
-        response.status_code == 401
-        and response.json().get("detail") == "Bad Credentials"
-    ):
-        print_formatted_text("[*] Invalid token...time to reauthenticate")
-    elif response.status_code == 200:
-        result = response.json()
+    match response.status_code:
+        case 404:
+            print_formatted_text(f"[*] Session id {session} not found!")
+        case 416:
+            print_formatted_text(f"[*] ID {id} not found for session {session}")
+        case 401:
+            print_formatted_text("[*] Invalid token...time to reauthenticate")
+        case 200:
+            result = response.json()
+            format_results_table(result, response)
+        case _:
+            print_formatted_text(response.status_code, response.text, response)
 
-        if result.get("task") == "download":
-            get_download_result(response)
-            return
 
-        table = PrettyTable()
-        table.field_names = ["ID", "Session", "Date Received", "Task", "Args"]
-        id = result.get("id")
-        session_id = result.get("session")
-        date_received = result.get("date", "Null")
-        if date_received != "Null":
-            date_received_formatted = fix_date(date_received)
-        else:
-            date_received_formatted = "Null"
-        task = result.get("task", "Null")
-        if task == "upload":
-            print_formatted_text("[+] No output for upload commands")
-            return
-        args = result.get("args", "Null")
-        table.add_row([id, session_id, date_received_formatted, task, args])
-        print_formatted_text(table)
-        output = result.get("results", "Null")
-        print_formatted_text(format_output(output))
+def format_results_table(result: list, response) -> None:
+    if result.get("task") == "download":
+        get_download_result(response)
+        return
+    table = PrettyTable()
+    table.field_names = ["ID", "Session", "Date Received", "Task", "Args"]
+    id = result.get("id")
+    session_id = result.get("session")
+    date_received = result.get("date", "Null")
+    if date_received != "Null":
+        date_received_formatted = fix_date(date_received)
     else:
-        print_formatted_text(response.status_code, response.text, response)
+        date_received_formatted = "Null"
+    task = result.get("task", "Null")
+    if task == "upload":
+        print_formatted_text("[+] No output for upload commands")
+        return
+    args = result.get("args", "Null")
+    table.add_row([id, session_id, date_received_formatted, task, args])
+    print_formatted_text(table)
+    output = result.get("results", "Null")
+    print_formatted_text(format_output(output))
+
 
 
 def format_sessions(sessions: list) -> None:

@@ -107,6 +107,6 @@ def print_upload_help():
     print_formatted_text("|             UPLOAD HELP                |")
     print_formatted_text("------------------------------------------")
     print_formatted_text("upload - Upload local file to the target")
-    print_formatted_text("\tExample:  upload /path/loca.txt /path/remote.txt")
+    print_formatted_text("\tExample:  upload /path/local.txt /path/remote.txt")
     print_formatted_text("\thelp upload - See this help menu")
     print_formatted_text("------------------------------------------")

