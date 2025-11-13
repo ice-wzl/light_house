@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from sqlalchemy import Column, Integer, String
 
 # local imports
-from server_helper.db import Base
+from .db import Base
 
 
 class Users(Base):

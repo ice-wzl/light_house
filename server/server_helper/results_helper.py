@@ -5,7 +5,7 @@ from sqlalchemy import Column, Integer, String, ForeignKey
 from sqlalchemy.orm import relationship
 
 # local imports
-from server_helper.db import Base
+from .db import Base
 
 
 class Results(Base):

@@ -4,7 +4,7 @@ from typing import Optional
 from sqlalchemy import Column, Integer, String, Boolean, Text
 
 # local imports
-from server_helper.db import Base
+from .db import Base
 
 
 class Implant(Base):

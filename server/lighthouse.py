@@ -11,23 +11,23 @@ from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.responses import RedirectResponse
 
 # local imports
-from server_helper.auth_helper import Token, oauth2_scheme
-from server_helper.auth_helper import SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
+from .server_helper.auth_helper import Token, oauth2_scheme
+from .server_helper.auth_helper import SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
 
-from server_helper.user_helper import Users, UserCreate, UserRead, UserDelete
-from server_helper.db import Base, SessionLocal
+from .server_helper.user_helper import Users, UserCreate, UserRead, UserDelete
+from .server_helper.db import Base, SessionLocal
 
-from server_helper.db import get_db
+from .server_helper.db import get_db
 
-from server_helper.implant_helper import Implant, ImplantCreate, ImplantRead
-from server_helper.tasking_helper import (
+from .server_helper.implant_helper import Implant, ImplantCreate, ImplantRead
+from .server_helper.tasking_helper import (
     Tasking,
     TaskingCreate,
     TaskingRead,
     TaskingDelete,
 )
 
-from server_helper.results_helper import (
+from .server_helper.results_helper import (
     Results,
     ResultsCreate,
     ResultsRead,
