@@ -140,6 +140,10 @@ def create_user(
     existing_user = db.query(Users).filter(Users.username == user.username).first()
     if existing_user:
         raise HTTPException(status_code=400, detail="Username already exists")
+    if len(user.username) == 0:
+        raise HTTPException(status_code=400, detail="Username cannot be blank")
+    if len(user.password) < 8:
+        raise HTTPException(status_code=400, detail="Password cannot be less than 8 characters")
     user_data = user.model_dump(exclude={"created_at"})
     db_user = Users(**user_data, created_at=datetime.now(timezone.utc).isoformat())
     db.add(db_user)
