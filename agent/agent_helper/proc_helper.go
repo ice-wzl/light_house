@@ -49,44 +49,48 @@ func get_ps() (string, error) {
 		cmdline_path := fmt.Sprintf("/proc/%d/cmdline", pid)
 		ppid_path := fmt.Sprintf("/proc/%d/status", pid)
 
-		var cmdline_file_contents string
-		if len(read_proc_file(cmdline_path)) != 0 {
-			cmdline_file_contents = read_proc_file(cmdline_path)
-		} else {
-			// Fallback to reading name from /proc/[pid]/status
-			status_contents := read_proc_file(ppid_path)
-			cmdline_file_lines := strings.Split(status_contents, "\n")
-
-			for _, line := range cmdline_file_lines {
-				if strings.HasPrefix(line, "Name:") {
-					parts := strings.Fields(line)
-					if len(parts) == 2 {
-						cmdline_file_contents = fmt.Sprintf("[%s]", parts[1])
-					} else {
-						cmdline_file_contents = "?"
-					}
-					break
-				}
-			}
-		}
+		cmdline_file_contents := getCmdFileContents(cmdline_path, ppid_path)
 
 		ppid_file_contents := read_proc_file(ppid_path)
 		ppid_lines := strings.Split(ppid_file_contents, "\n")
 
-		var ppid_value string
-		for _, line := range ppid_lines {
-			if strings.HasPrefix(line, "PPid:") {
-				parts := strings.Fields(line)
-				if len(parts) == 2 {
-					ppid_value = parts[1]
-				} else {
-					ppid_value = "?"
-				}
-				break
-			}
-		}
+		ppid_value := getPpidValue(ppid_lines)
 
 		process_list += fmt.Sprintf("%-7d  %-7s  %s\n", pid, ppid_value, cmdline_file_contents)
 	}
 	return process_list, nil
+}
+
+func getCmdFileContents(cmdline_path string, ppid_path string) string {
+	if len(read_proc_file(cmdline_path)) != 0 {
+			return read_proc_file(cmdline_path)
+	}
+	status_contents := read_proc_file(ppid_path)
+	cmdline_file_lines := strings.Split(status_contents, "\n")
+
+	for _, line := range cmdline_file_lines {
+		if strings.HasPrefix(line, "Name:") {
+			parts := strings.Fields(line)
+			if len(parts) == 2 {
+				return fmt.Sprintf("[%s]", parts[1])
+			} else {
+				return "?"
+			}
+		}
+	}
+	return "?"
+}
+
+func getPpidValue(ppid_lines []string) string {
+	for _, line := range ppid_lines {
+		if strings.HasPrefix(line, "PPid:") {
+			parts := strings.Fields(line)
+			if len(parts) == 2 {
+				return parts[1]
+			} else {
+				return "?"
+			}
+		}
+	}
+	return "?"
 }
