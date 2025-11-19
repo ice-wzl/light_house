@@ -272,55 +272,56 @@ def get_session(token: str, server: str, session: str) -> int:
         "Authorization": f"Bearer {token}",
     }
     response = httpx.get(url, headers=headers, verify=False)
-    if response.status_code == 200:
-        session = response.json()
-        table = PrettyTable()
-        table.field_names = [
-            "Session",
-            "Alive",
-            "Last Seen",
-            "First Seen",
-            "CB Freq(m)",
-            "User",
-            "Hostname",
-        ]
-
-        session_id = session.get("session", "Null")
-        status = session.get("alive", "Null")
-        last_seen = session.get("last_checkin", "Null")
-        if last_seen != "Null":
-            last_seen_formatted = fix_date(last_seen)
-        first_seen = session.get("first_checkin", "Null")
-        if first_seen != "Null":
-            first_seen_formatted = fix_date(first_seen)
-        cb_freq = session.get("callback_freq", "Null")
-        user = session.get("username", "Null")
-        hostname = session.get("hostname", "Null")
-        table.add_row(
-            [
-                session_id,
-                status,
-                last_seen_formatted,
-                first_seen_formatted,
-                cb_freq,
-                user,
-                hostname,
-            ]
-        )
-        print_formatted_text(table)
-    elif response.status_code == 404:
-        print_formatted_text(f"[*] Session id {session} not found!")
-    elif (
-        response.status_code == 401
-        and response.json().get("detail") == "Bad Credentials"
-    ):
-        print_formatted_text("[*] Invalid token...time to reauthenticate")
-    elif response.status_code == 410:
-        print_formatted_text(f"[*] {response.json().get("detail")}")
-
-    else:
-        print_formatted_text(response.status_code, response.text, response)
+    match response.status_code:
+        case 200:
+            session = response.json()
+            generate_session_table(session)
+        case 404:
+            print_formatted_text(f"[*] Session id {session} not found!")
+        case 401:
+            if response.json().get("detail") == "Bad Credentials":
+                print_formatted_text("[*] Invalid token...time to reauthenticate")
+        case 410:
+            print_formatted_text(f"[*] {response.json().get("detail")}")
+        case _:
+            print_formatted_text(response.status_code, response.text, response)
     return response.status_code
+
+
+def generate_session_table(session: list):
+    table = PrettyTable()
+    table.field_names = [
+        "Session",
+        "Alive",
+        "Last Seen",
+        "First Seen",
+        "CB Freq(m)",
+        "User",
+        "Hostname",
+    ]
+    session_id = session.get("session", "Null")
+    status = session.get("alive", "Null")
+    last_seen = session.get("last_checkin", "Null")
+    if last_seen != "Null":
+        last_seen_formatted = fix_date(last_seen)
+    first_seen = session.get("first_checkin", "Null")
+    if first_seen != "Null":
+        first_seen_formatted = fix_date(first_seen)
+    cb_freq = session.get("callback_freq", "Null")
+    user = session.get("username", "Null")
+    hostname = session.get("hostname", "Null")
+    table.add_row(
+        [
+            session_id,
+            status,
+            last_seen_formatted,
+            first_seen_formatted,
+            cb_freq,
+            user,
+            hostname,
+        ]
+    )
+    print_formatted_text(table)
 
 
 def interact_implant(token: str, server: str, session_id: str) -> None:

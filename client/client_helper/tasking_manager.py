@@ -46,11 +46,7 @@ def send_task(token: str, server: str, session: str, tasking: str, args: str) ->
     :param args: The arguments for the task
     :return: None
     """
-    # DEBUGGING
-    print(f"ARGS: {args}")
-
     argsf = format_args(args)
-    print(f"ARGSF: {argsf}")
     url = f"https://{server}/tasking/{session}"
     headers = {
         "accept": "application/json",

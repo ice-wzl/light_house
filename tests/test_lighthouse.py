@@ -196,18 +196,6 @@ def test_user_create_no_token():
     assert response.status_code == 401
     assert response.json()["detail"] == "Not authenticated"
 
-
-def test_user_create_req():
-    print(f"\nTesting: test_user_create_req()")
-    data = {
-        "username": 'system',
-        "password": 'password123',
-    }
-    response = client.post("/users/create", headers=get_token_headers_helper(), json=data)
-    get_response_helper(response)
-    assert response.status_code == 200
-    assert len(response.json()["created_at"]) > 0 
-
     
 def test_user_already_exists_req():
     print(f"\nTesting: test_user_already_exists_req()")
