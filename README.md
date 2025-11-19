@@ -54,19 +54,13 @@ python3 build_agent.py -a <ARCH>
 ````
 - You will find the final binary in the `build/` directory which will get created during compile time.
 ## Lighhouse Setup
+- There is a bash script that will run the server located in the project root. Simply run that script!
+- Alternatively if you prefer to run the server in the foreground simply run the below command from the `light_house/` directory
 ````
-cd server
-````
-- Setup virtual env
-````
-# run the server
-python3 -m uvicorn lighthouse:app --reload --host 0.0.0.0 --port 8000
-INFO:     Will watch for changes in these directories: ['/opt/light_house/server']
-INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
-INFO:     Started reloader process [1100534] using StatReload
-INFO:     Started server process [1100536]
-INFO:     Waiting for application startup.
-INFO:     Application startup complete.
+# if venv is not active already
+source venv/bin/activate
+# run the server in the foreground
+python3 -m uvicorn server.lighthouse:app --reload --host 0.0.0.0 --port 8000 --ssl-certfile certs/server.crt --ssl-keyfile certs/server.key
 ````
 ## Merchant Client Setup
 ````
