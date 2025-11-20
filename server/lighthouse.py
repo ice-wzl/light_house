@@ -3,7 +3,7 @@ import argparse
 import base64
 import binascii
 import uvicorn
-
+import re
 from jose import JWTError, jwt
 from datetime import datetime, timedelta, timezone
 from typing import List
@@ -318,7 +318,11 @@ def check_in(session: str, db: SessionLocal = Depends(get_db)):  # type: ignore
     )
 
     if pending_tasks:
-        return RedirectResponse(f"/tasks/{session}", status_code=301)
+        # Validate session value to prevent open redirect vulnerability
+        # Accept only alphanumeric, dash, and underscore
+        if re.fullmatch(r"[A-Za-z0-9_-]+", session):
+            return RedirectResponse(f"/tasks/{session}", status_code=301)
+        # If session is invalid, do not redirect, just return implant
 
     # no pending tasks all completed=True
     return db_implant
