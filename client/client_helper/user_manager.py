@@ -82,7 +82,7 @@ def get_users(token: str, server: str) -> None:
     :param server: The lighthouse server address
     :return: None
     """
-    url = f"https://{server}/users"
+    url = f"https://{server}/users/"
     headers = {
         "accept": "application/json",
         "Authorization": f"Bearer {token}",

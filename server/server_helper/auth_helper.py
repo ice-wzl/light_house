@@ -1,7 +1,9 @@
 #!/usr/bin/python3
 from pydantic import BaseModel
+from fastapi import FastAPI, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from datetime import datetime, timedelta, timezone
+from jose import JWTError, jwt
 
 SECRET_KEY = "supersecretkey123"
 ALGORITHM = "HS256"
