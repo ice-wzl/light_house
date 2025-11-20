@@ -54,14 +54,20 @@ python3 build_agent.py -a <ARCH>
 ````
 - You will find the final binary in the `build/` directory which will get created during compile time.
 ## Lighhouse Setup
-- There is a bash script that will run the server located in the project root. Simply run that script!
-- Alternatively if you prefer to run the server in the foreground simply run the below command from the `light_house/` directory
+- There is a config file that controls the lighthouse server variables
 ````
-# if venv is not active already
-source venv/bin/activate
-# run the server in the foreground
-python3 -m uvicorn server.lighthouse:app --reload --host 0.0.0.0 --port 8000 --ssl-certfile certs/server.crt --ssl-keyfile certs/server.key
+cat server/lighthouse.conf 
+debug: true
+server_crt: certs/server.crt
+server_key: certs/server.key
+listen_host: 0.0.0.0
+listen_port: 8000
 ````
+- Set up your desired values and ensure you run the below server command from the project root (light_house/)
+````
+python3 server/lighthouse.py -c server/lighthouse.conf
+````
+
 ## Merchant Client Setup
 ````
 cd client

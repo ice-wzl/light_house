@@ -1,6 +1,8 @@
 #!/usr/bin/python3
+import argparse
 import base64
 import binascii
+import uvicorn
 
 from jose import JWTError, jwt
 from datetime import datetime, timedelta, timezone
@@ -11,31 +13,32 @@ from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.responses import RedirectResponse
 
 # local imports
-from .server_helper.auth_helper import Token, oauth2_scheme
-from .server_helper.auth_helper import SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
+from server_helper.auth_helper import Token, oauth2_scheme
+from server_helper.auth_helper import SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
 
-from .server_helper.user_helper import Users, UserCreate, UserRead, UserDelete
-from .server_helper.db import Base, SessionLocal
+from server_helper.user_helper import Users, UserCreate, UserRead, UserDelete
+from server_helper.db import Base, SessionLocal
 
-from .server_helper.db import get_db
+from server_helper.db import get_db
 
-from .server_helper.implant_helper import Implant, ImplantCreate, ImplantRead
-from .server_helper.tasking_helper import (
+from server_helper.implant_helper import Implant, ImplantCreate, ImplantRead
+from server_helper.tasking_helper import (
     Tasking,
     TaskingCreate,
     TaskingRead,
     TaskingDelete,
 )
 
-from .server_helper.results_helper import (
+from server_helper.results_helper import (
     Results,
     ResultsCreate,
     ResultsRead,
     ResultsDelete,
 )
 
-app = FastAPI()
+from server_helper.lighthouse_config import *
 
+app = FastAPI()
 
 # for client only to be able to access protected endpoints, authentication via OAuth2
 @app.post("/token/", response_model=Token)
@@ -457,3 +460,14 @@ def get_tasks(session: str, db: SessionLocal = Depends(get_db)):  # type: ignore
         db.refresh(task)
 
     return tasking
+
+
+if __name__ == '__main__':
+    opts = argparse.ArgumentParser(description="light_house server application")
+    opts.add_argument("-c", "--config", help="the light_house config file containing runtime variables", required=True, type=str, default="lighthouse.conf", dest="config")
+    args = opts.parse_args()
+    
+    conf = parse_config(args.config)
+    web_server = parse_config_vals(conf)
+    uvicorn.run(app, host=web_server.listen_host, port=web_server.listen_port, ssl_certfile=web_server.server_crt, ssl_keyfile=web_server.server_key)
+
