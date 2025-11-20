@@ -20,6 +20,8 @@ from server_helper.user_helper import Users, UserCreate, UserRead, UserDelete
 from server_helper.db import Base, SessionLocal
 
 from server_helper.db import get_db
+from server_helper.auth_helper import verify_token
+from server_helper.auth_helper import create_access_token
 
 from server_helper.implant_helper import Implant, ImplantCreate, ImplantRead
 from server_helper.tasking_helper import (
@@ -39,6 +41,8 @@ from server_helper.results_helper import (
 from server_helper.lighthouse_config import *
 
 app = FastAPI()
+from routes.user_routes import router as user_router
+app.include_router(user_router)
 
 # for client only to be able to access protected endpoints, authentication via OAuth2
 @app.post("/token/", response_model=Token)
@@ -56,126 +60,8 @@ def login(
     )
     if not user_exists:
         raise HTTPException(status_code=401, detail="Invalid username or password")
-    access_token = create_access_token(data={"sub": form_data.username})
+    access_token = server_helper.create_access_token(data={"sub": form_data.username})
     return {"access_token": access_token, "token_type": "bearer"}
-
-
-# for clients only to get jwt token upon successful login
-def create_access_token(data: dict, expires_delta: timedelta | None = None):
-    to_encode = data.copy()
-    expire = datetime.now(timezone.utc) + (
-        expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    )
-    to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
-
-
-# for clients only to verify the token is correct and valid still
-def verify_token(token: str, Depends=(oauth2_scheme)):
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Bad credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
-        if username is None:
-            raise credentials_exception
-        return payload
-    except JWTError:
-        raise credentials_exception
-
-
-# PROTECTED endpoint to view all information about all users
-@app.get("/users", response_model=List[UserRead])
-def read_users(
-    db: SessionLocal = Depends(get_db),  # type: ignore
-    token: str = Security(oauth2_scheme),
-):
-    """
-    Provide all the users that exist in the users table
-    :param db: The active db connection
-    :param token: The jwt authentication token provided during authentication
-    :return users: The users from the user table in json format
-    """
-    verify_token(token)
-    users = db.query(Users).all()
-    return users
-
-
-# PROTECTED endpoint to view all information about a user
-@app.get("/users/{user_id}", response_model=UserRead)
-def read_user(
-    user_id: int,
-    db: SessionLocal = Depends(get_db),  # type: ignore
-    token: str = Security(oauth2_scheme),
-):
-    """
-    Provide specific user by id that may or may not exist in the users table
-    :param db: The active db connection
-    :param token: The jwt authentication token provided during authentication
-    :return user: The requested user or a 404 code
-    """
-    verify_token(token)
-    user = db.query(Users).filter(Users.id == user_id).first()
-    if user is None:
-        raise HTTPException(status_code=404, detail="User not found")
-    return user
-
-
-# PROTECTED endpoint to create a new user
-@app.post("/users/create", response_model=UserCreate)
-def create_user(
-    user: UserCreate,
-    db: SessionLocal = Depends(get_db),  # type: ignore
-    token: str = Security(oauth2_scheme),
-):
-    """
-    Create a user in the users table via username and password
-    :param user: The user to create via username and password
-    :param db: The active db connection
-    :param token: The jwt authentication token provided during authentication
-    :return db_user: The users information that was added to the users table or a 400 status code
-    """
-    verify_token(token)
-    existing_user = db.query(Users).filter(Users.username == user.username).first()
-    if existing_user:
-        raise HTTPException(status_code=400, detail="Username already exists")
-    if len(user.username) == 0:
-        raise HTTPException(status_code=400, detail="Username cannot be blank")
-    if len(user.password) < 8:
-        raise HTTPException(status_code=400, detail="Password cannot be less than 8 characters")
-    user_data = user.model_dump(exclude={"created_at"})
-    db_user = Users(**user_data, created_at=datetime.now(timezone.utc).isoformat())
-    db.add(db_user)
-    db.commit()
-    db.refresh(db_user)
-    return db_user
-
-
-# PROTECTED endpoint to delete a user
-@app.delete("/users/delete/{user_id}", response_model=UserDelete)
-def delete_user(
-    user_id: int,
-    db: SessionLocal = Depends(get_db),  # type: ignore
-    token: str = Security(oauth2_scheme),
-):
-    """
-    The user to delete from the users table by ID
-    :param user_id: The user id to attempt to remove from the users table
-    :param db: The active db connection
-    :param token: The jwt authentication token provided during authentication
-    :return UserDelete: The user to delete from the users table, or 404 status code
-    """
-    verify_token(token)
-    db_user = db.query(Users).filter(Users.id == user_id).first()
-    if db_user is None:
-        raise HTTPException(status_code=404, detail="User not found")
-    db.delete(db_user)
-    db.commit()
-    return UserDelete(id=user_id)
 
 
 # PROTECTED endpoint for clients to retrieve result based on session id and tasking id
@@ -194,7 +80,7 @@ def read_result(
     :param token: The jwt authentication token used to auth to lighthouse
     :return db_result: The result of the tasking provided back in json format
     """
-    verify_token(token)
+    server_helper.verify_token(token)
     db_implant = db.query(Implant).filter(Implant.session == session).first()
     if not db_implant:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -295,7 +181,7 @@ def create_tasking(
     :return db_task: The json tasking information, 404 if the session is not found, 400 if the
     arguments are not valid for the tasking request
     """
-    verify_token(token)
+    server_helper.verify_token(token)
     current_time = datetime.now(timezone.utc).isoformat()
     # Check if the session exists
     db_implant = db.query(Implant).filter(Implant.session == session).first()
@@ -332,7 +218,7 @@ def read_taskings(
     db: SessionLocal = Depends(get_db),  # type: ignore
     token: str = Security(oauth2_scheme),
 ):
-    verify_token(token)
+    server_helper.verify_token(token)
     db_implant = db.query(Implant).filter(Implant.session == session).first()
     if not db_implant:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -375,7 +261,7 @@ def read_implants(
     db: SessionLocal = Depends(get_db),  # type: ignore
     token: str = Security(oauth2_scheme),
 ):
-    verify_token(token)
+    server_helper.verify_token(token)
     implants = db.query(Implant).all()
     return implants
 
@@ -387,7 +273,7 @@ def read_single_implant(
     db: SessionLocal = Depends(get_db),  # type: ignore
     token: str = Security(oauth2_scheme),
 ):
-    verify_token(token)
+    server_helper.verify_token(token)
     implant = db.query(Implant).filter(Implant.session == session).first()
     if implant is None:
         raise HTTPException(status_code=404, detail="Session not found")
