@@ -43,7 +43,7 @@ type ResultsCreate struct {
 
 var CustomClient = &http.Client{
 	Transport: &http.Transport{
-		TLSClientConfig:   &tls.Config{InsecureSkipVerify: true},
+		TLSClientConfig:   &tls.Config{},
 		DisableKeepAlives: true,
 	},
 	Timeout: 10 * time.Second,
