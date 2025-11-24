@@ -44,9 +44,13 @@ app = FastAPI()
 from routes.user_routes import router as user_router
 from routes.health_routes import router as health_router
 from routes.results_routes import router as results_router
+from routes.implant_routes import router as implant_router
+
 app.include_router(user_router)
 app.include_router(health_router)
 app.include_router(results_router)
+app.include_router(implant_router)
+
 
 # for client only to be able to access protected endpoints, authentication via OAuth2
 @app.post("/token/", response_model=Token)
@@ -136,57 +140,6 @@ def read_taskings(
         .all()
     )
     return tasking
-
-
-# endpoint for agent initial checkin, register with server for future tasking/results/tracking
-@app.post("/implants/", response_model=ImplantRead)
-def create_implant(implant: ImplantCreate, db: SessionLocal = Depends(get_db)):  # type: ignore
-    current_time = datetime.now(timezone.utc).isoformat()
-
-    implant_data = implant.model_dump(
-        exclude={"alive", "first_checkin", "last_checkin"}
-    )
-    db_implant = Implant(
-        **implant_data,
-        alive=True,
-        first_checkin=current_time,
-        last_checkin=current_time,
-    )
-
-    db.add(db_implant)
-    db.commit()
-    db.refresh(db_implant)
-    return db_implant
-
-
-# PROTECTED endpoint for clients only to be able to view all implants
-@app.get("/implants/", response_model=List[ImplantRead])
-def read_implants(
-    db: SessionLocal = Depends(get_db),  # type: ignore
-    token: str = Security(oauth2_scheme),
-):
-    verify_token(token)
-    implants = db.query(Implant).all()
-    return implants
-
-
-# PROTECTED endpoint for clients to be able to view a single implant by session
-@app.get("/implants/{session}", response_model=ImplantRead)
-def read_single_implant(
-    session: str,
-    db: SessionLocal = Depends(get_db),  # type: ignore
-    token: str = Security(oauth2_scheme),
-):
-    verify_token(token)
-    implant = db.query(Implant).filter(Implant.session == session).first()
-    if implant is None:
-        raise HTTPException(status_code=404, detail="Session not found")
-    # check if alive
-    if not implant.alive:
-        raise HTTPException(
-            status_code=410, detail="Implant is dead or has been killed"
-        )
-    return implant
 
 
 # endpoint for agent to retrieve tasks, mark them as pending after agent picks them up
