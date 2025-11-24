@@ -12,7 +12,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from server_helper.user_helper import Users, UserRead, UserCreate, UserDelete
 from server_helper.auth_helper import oauth2_scheme, verify_token
 from server_helper.db import get_db, SessionLocal
-from server_helper.auth_helper import Token, oauth2_scheme
+from server_helper.auth_helper import Token, oauth2_scheme, create_access_token
 
 from server_helper.implant_helper import Implant, ImplantCreate, ImplantRead
 from server_helper.tasking_helper import (

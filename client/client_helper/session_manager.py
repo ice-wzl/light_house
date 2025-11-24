@@ -433,7 +433,7 @@ def handle_ls(token: str, server: str, session_id: str, args: list) -> None:
     if len(args) == 1:
         send_task(token, server, session_id, "ls", args[0])
     else:
-        send_task(token, server, session_id, "ls", "")
+        send_task(token, server, session_id, "ls", ".")
 
 
 def handle_exec_fg(token: str, server: str, session_id: str, args: list) -> None:

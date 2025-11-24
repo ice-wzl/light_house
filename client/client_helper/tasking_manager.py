@@ -31,11 +31,7 @@ def format_args(args: str) -> str:
     based = base64.b64encode(args.encode("utf-8"))
     return based.hex()
 
-'''
-send_task(
-                token, server, session_id, "upload", src_path + "," + dst_path + ":" + binary_to_send
-         )
-'''
+
 def send_task(token: str, server: str, session: str, tasking: str, args: str) -> None:
     """
     Sends a task to the lighthouse server for a specific session.
