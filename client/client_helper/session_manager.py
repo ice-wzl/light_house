@@ -30,6 +30,7 @@ from client_helper.help_manager import print_reconfig_help
 from client_helper.help_manager import print_tasking_help
 from client_helper.help_manager import print_upload_help
 from client_helper.help_manager import print_view_help
+from client_helper.help_manager import print_commands_help
 
 # colors for the sessions prompt
 style_session = Style.from_dict(
@@ -427,6 +428,8 @@ def handle_help(args: list):
             print_download_help()
         case "upload":
             print_upload_help()
+        case "commands":
+            print_commands_help()
 
 
 def handle_ls(token: str, server: str, session_id: str, args: list) -> None:

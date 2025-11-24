@@ -154,7 +154,7 @@ def driver(username: str, password: str, server: str):
     timer_thread.start()
 
     session = PromptSession()
-    print_formatted_text("[+] Enter commands to see available commands")
+    print_formatted_text("[+] Enter <tab> to see available commands")
 
     while True:
         options = session.prompt(

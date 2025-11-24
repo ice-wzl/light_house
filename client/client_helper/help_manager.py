@@ -1,12 +1,30 @@
 from prompt_toolkit import print_formatted_text
 
+def print_commands_help():
+    print_formatted_text("------------------------------------------")
+    print_formatted_text("|          COMMANDS HELP                 |")
+    print_formatted_text("------------------------------------------")
+    print_formatted_text("info     - See basic implant information")
+    print_formatted_text("tasking  - See pending and completed implant tasks")
+    print_formatted_text("reconfig - Change implant callback interval, jitter, max errors")
+    print_formatted_text("view     - View results of an implant task")
+    print_formatted_text("ls       - See directory listing")
+    print_formatted_text("ps       - See process listing")
+    print_formatted_text("exec_bg  - Execute command without stdout / stderr returned")
+    print_formatted_text("exec_fg  - Execute command with stdout / stderr returned")
+    print_formatted_text("kill     - Terminate the running agent process")
+    print_formatted_text("download - Download remote file from target")
+    print_formatted_text("upload   - Upload local file to the target")
+    print_formatted_text("commands - See this help menu")
+    print_formatted_text("------------------------------------------")
+
 
 def print_info_help():
     print_formatted_text("------------------------------------------")
     print_formatted_text("|              INFO HELP                 |")
     print_formatted_text("------------------------------------------")
-    print(colored("info", attrs=["bold"]) + " - See basic imlant information")
-    print(colored("help info", attrs=["bold"]) + " - See this help menu")
+    print("info - See basic imlant information")
+    print("\thelp info - See this help menu")
     print_formatted_text("------------------------------------------")
 
 
@@ -34,7 +52,7 @@ def print_process_list_help():
     print_formatted_text("------------------------------------------")
     print_formatted_text("|              PS HELP                   |")
     print_formatted_text("------------------------------------------")
-    print_formatted_text("info - See process listing")
+    print_formatted_text("ps - See process listing")
     print_formatted_text("\thelp ps - See this help menu")
     print_formatted_text("------------------------------------------")
 
