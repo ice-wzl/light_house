@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, FastAPI, HTTPException, status, Depends, Security
 from fastapi.responses import RedirectResponse
 from fastapi.security import OAuth2PasswordBearer
+import re
 from jose import JWTError, jwt
 from typing import Optional, List
 
@@ -53,7 +54,12 @@ def check_in(session: str, db: SessionLocal = Depends(get_db)):  # type: ignore
     )
 
     if pending_tasks:
-        return RedirectResponse(f"/tasks/{session}", status_code=301)
+        # Only redirect if session is safe (alphanumeric, dash, underscore)
+        if re.fullmatch(r"[A-Za-z0-9_-]+", session):
+            return RedirectResponse(f"/tasks/{session}", status_code=301)
+        else:
+            # Reject or provide a safe fallback
+            raise HTTPException(status_code=400, detail="Invalid session value")
 
     # no pending tasks all completed=True
     return db_implant
