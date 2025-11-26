@@ -2,7 +2,6 @@ import random
 import string
 import pytest
 import os
-import sys
 
 from httpx import codes
 from fastapi.testclient import TestClient
@@ -295,3 +294,24 @@ def test_get_implant_session():
     get_response_helper(response)
     assert response.status_code == 200
     assert response.json()["session"] == session_id
+
+
+@pytest.mark.parametrize(
+    "method,expected_status",
+    [
+        ("put", codes.METHOD_NOT_ALLOWED),
+        ("options", codes.METHOD_NOT_ALLOWED),
+        ("delete", codes.METHOD_NOT_ALLOWED),
+        ("head", codes.METHOD_NOT_ALLOWED),
+        ("put", codes.METHOD_NOT_ALLOWED),
+        ("patch", codes.METHOD_NOT_ALLOWED),
+    ]
+)
+def test_alt_methods_implants(method, expected_status):
+    print(f"Testing: test_alt_methods_implants()")
+    response = getattr(client, method)("/implants/", headers=get_token_headers_helper())
+    if response.content:
+        get_response_helper(response)
+    assert response.status_code == 405
+    if method != "head":
+        assert response.json()["detail"] == "Method Not Allowed"
