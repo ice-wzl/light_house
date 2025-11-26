@@ -15,22 +15,22 @@ from prompt_toolkit.styles import Style
 from prompt_toolkit import print_formatted_text
 
 # local imports
-from client_helper.user_manager import fix_date
-from client_helper.tasking_manager import get_tasking, send_task
-from client_helper.tasking_manager import format_args
-
-from client_helper.help_manager import print_info_help
-from client_helper.help_manager import print_download_help
-from client_helper.help_manager import print_exec_bg_help
-from client_helper.help_manager import print_exec_fg_help
-from client_helper.help_manager import print_kill_help
-from client_helper.help_manager import print_ls_help
-from client_helper.help_manager import print_process_list_help
-from client_helper.help_manager import print_reconfig_help
-from client_helper.help_manager import print_tasking_help
-from client_helper.help_manager import print_upload_help
-from client_helper.help_manager import print_view_help
-from client_helper.help_manager import print_commands_help
+from client.client_helper.user_manager import fix_date
+from client.client_helper.tasking_manager import get_tasking, send_task, format_args
+from client.client_helper.help_manager import (
+    print_info_help,
+    print_download_help,
+    print_exec_bg_help,
+    print_exec_fg_help,
+    print_kill_help,
+    print_ls_help,
+    print_process_list_help,
+    print_reconfig_help,
+    print_tasking_help,
+    print_upload_help,
+    print_view_help,
+    print_commands_help,
+)
 
 # colors for the sessions prompt
 style_session = Style.from_dict(

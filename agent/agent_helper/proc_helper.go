@@ -28,9 +28,9 @@ func get_proc_listing() []string {
 			if err != nil {
 				continue
 			} else {
-				usernameFilenames = append(usernameFilenames, owner.Username + "," +file.Name())
+				usernameFilenames = append(usernameFilenames, owner.Username+","+file.Name())
 			}
-		}		
+		}
 	}
 	return usernameFilenames
 }
@@ -77,7 +77,7 @@ func get_ps() (string, error) {
 
 func getCmdFileContents(cmdline_path string, ppid_path string) string {
 	if len(read_proc_file(cmdline_path)) != 0 {
-			return read_proc_file(cmdline_path)
+		return read_proc_file(cmdline_path)
 	}
 	status_contents := read_proc_file(ppid_path)
 	cmdline_file_lines := strings.Split(status_contents, "\n")

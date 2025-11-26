@@ -3,23 +3,27 @@ import logging
 import shlex
 import sys
 import threading
-
+from pathlib import Path
 from time import sleep
+
+# Add project root to path for running from project root: python client/merchant.py
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 from prompt_toolkit import PromptSession
 from prompt_toolkit.completion import WordCompleter
 from prompt_toolkit.styles import Style
 from prompt_toolkit import print_formatted_text
 
 # local imports
-from client_helper.user_manager import (
+from client.client_helper.user_manager import (
     user_add,
     user_delete,
     get_users,
     get_user,
     authenticate,
 )
-from client_helper.session_manager import get_sessions, test_session, interact_implant
-from client_helper.tasking_manager import get_tasking
+from client.client_helper.session_manager import get_sessions, test_session, interact_implant
+from client.client_helper.tasking_manager import get_tasking
 
 # currently not using this logger, keeping for future use
 log_format = "%(asctime)s - %(message)s"

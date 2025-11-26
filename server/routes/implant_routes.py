@@ -1,30 +1,11 @@
-import base64
-import binascii
 from datetime import datetime, timezone
-from fastapi import APIRouter, FastAPI, HTTPException, status, Depends, Security
-from fastapi.responses import RedirectResponse
-from fastapi.security import OAuth2PasswordBearer
-from jose import JWTError, jwt
-from typing import Optional, List
+from typing import List
 
-# CORRECT imports when you're inside the 'server' package
-from server_helper.user_helper import Users, UserRead, UserCreate, UserDelete
-from server_helper.auth_helper import oauth2_scheme, verify_token
-from server_helper.db import get_db, SessionLocal
+from fastapi import APIRouter, HTTPException, Depends, Security
 
-from server_helper.implant_helper import Implant, ImplantCreate, ImplantRead
-from server_helper.tasking_helper import (
-    Tasking,
-    TaskingCreate,
-    TaskingRead,
-    TaskingDelete,
-)
-from server_helper.results_helper import (
-    Results,
-    ResultsCreate,
-    ResultsRead,
-    ResultsDelete,
-)
+from server.server_helper.auth_helper import oauth2_scheme, verify_token
+from server.server_helper.db import get_db, SessionLocal
+from server.server_helper.implant_helper import Implant, ImplantCreate, ImplantRead
 
 router = APIRouter(prefix="/implants", tags=["implants"])
 

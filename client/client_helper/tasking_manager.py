@@ -1,9 +1,12 @@
 #!/usr/bin/python3
-import httpx
 import base64
+import binascii
+
+import httpx
 from prompt_toolkit import print_formatted_text
 from prettytable import PrettyTable
-from client_helper.user_manager import fix_date
+
+from client.client_helper.user_manager import fix_date
 
 
 def format_output(output: str) -> str:
