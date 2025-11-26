@@ -1,5 +1,8 @@
+import random
+import string
 import pytest
 import os
+import sys
 
 from httpx import codes
 from fastapi.testclient import TestClient
@@ -30,6 +33,7 @@ from server.server_helper.results_helper import (
 )
 
 client = TestClient(app)
+
 os.system("cd db/ && ./reset_db.sh")
 
 def get_headers_helper():
@@ -68,6 +72,17 @@ def get_token_helper():
     token = response_data["access_token"]
     return token
 
+
+def gen_fake_host_data(length: int):
+    chars = string.ascii_letters + string.digits
+    random_data = ''.join(random.choices(chars, k=length))
+    return random_data
+
+
+def gen_fake_session_name():
+    chars = string.hexdigits
+    random_data = ''.join(random.choices(chars, k=8))
+    return random_data
 
 @pytest.mark.parametrize(
     "method,expected_status",
@@ -175,8 +190,10 @@ def test_user_create_no_username_req():
 
 def test_user_create_no_password_req():
     print(f"\nTesting: test_user_create_no_password_req()")
+    chars = string.ascii_lowercase
+    random_username = ''.join(random.choices(chars, k=6))
     data = {
-        "username": 'system',
+        "username": random_username,
         "password": '',
     }
     response = client.post("/users/create", headers=get_token_headers_helper(), json=data)
@@ -209,6 +226,72 @@ def test_user_already_exists_req():
     assert response.json()["detail"] == "Username already exists"
 
 
+def test_create_user_req():
+    print(f"\tTesting: test_create_user_req()")
+    username = "system"
+    password = "abcdefgh"
+    data = {
+        "username": username,
+        "password": password,
+    }
+    response = client.post("/users/create", headers=get_token_headers_helper(), json=data)
+    get_response_helper(response)
+    assert response.status_code == 200
+    assert response.json()["username"] == username
+    assert response.json()["password"] == password
+    assert len(response.json()["created_at"]) > 0
 
 
+'''
+FINISH
+'''
+def test_delete_user_req():
+    print(f"\tTesting: test_delete_user_req()")
+    response = client.delete("/delete/2", headers=get_token_headers_helper())
+    get_response_helper(response)
 
+
+def test_agent_checkin_req():
+    print(f"\tTesting: test_agent_checkin_req()")
+    data = {
+        "session": gen_fake_session_name(),
+        "hostname": gen_fake_host_data(8),
+        "username": gen_fake_host_data(5),
+        "callback_freq": 1,
+        "jitter": 15,
+    }
+    response = client.post("/implants/", json=data)
+    get_response_helper(response)
+    assert response.status_code == 200
+
+
+def test_agent_checkin_missing_id():
+    print(f"Testing: test_Agent_Checkin_missing_id()")
+    data = {
+        "session": "",
+        "hostname": gen_fake_host_data(10),
+        "username": gen_fake_host_data(5),
+        "callback_freq": 1,
+        "jitter": 15,
+    }
+    response = client.post("/implants/", json=data)
+    get_response_helper(response)
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Invalid session id"
+
+
+def test_get_implants_req():
+    print(f"Testing: test_Get_implants_req()")
+    response = client.get("/implants/", headers=get_token_headers_helper())
+    get_response_helper(response)
+    assert response.status_code == 200
+    
+
+def test_get_implant_session():
+    print(f"Testing: test_get_implant_session()")
+    implants_all = client.get("/implants/", headers=get_token_headers_helper())
+    session_id = implants_all.json()[0]["session"]
+    response = client.get(f"/implants/{session_id}", headers=get_token_headers_helper())
+    get_response_helper(response)
+    assert response.status_code == 200
+    assert response.json()["session"] == session_id

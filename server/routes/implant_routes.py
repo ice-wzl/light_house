@@ -17,6 +17,9 @@ def create_implant(implant: ImplantCreate, db: SessionLocal = Depends(get_db)): 
     implant_data = implant.model_dump(
         exclude={"alive", "first_checkin", "last_checkin"}
     )
+    if len(implant.session) != 8:
+        raise HTTPException(status_code=400, detail="Invalid session id")
+    
     db_implant = Implant(
         **implant_data,
         alive=True,

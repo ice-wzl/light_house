@@ -3,7 +3,6 @@ import argparse
 import sys
 from pathlib import Path
 
-# Add project root to path for running from project root: python server/lighthouse.py
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import uvicorn
