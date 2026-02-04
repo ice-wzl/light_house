@@ -3,7 +3,7 @@ from typing import List
 
 from fastapi import APIRouter, HTTPException, Depends, Security
 
-from server.server_helper.user_helper import Users, UserRead, UserCreate, UserDelete
+from server.server_helper.user_helper import Users, UserRead, UserCreate, UserDelete, UsersDeleteUsername
 from server.server_helper.auth_helper import oauth2_scheme, verify_token
 from server.server_helper.db import get_db, SessionLocal
 
@@ -67,6 +67,28 @@ def delete_user(
     db.delete(db_user)
     db.commit()
     return UserDelete(id=user_id)
+
+# PROTECTED endpoint to delete a user
+@router.delete("/delete/username/{username}", response_model=UsersDeleteUsername)
+def delete_user_by_username(
+    username: str,
+    db: SessionLocal = Depends(get_db),  # type: ignore
+    token: str = Security(oauth2_scheme),
+):
+    """
+    The user to delete from the users table by username
+    :param username: The username to attempt to remove from the users table
+    :param db: The active db connection
+    :param token: The jwt authentication token provided during authentication
+    :return UserDelete: The user to delete from the users table, or 404 status code
+    """
+    verify_token(token)
+    db_user = db.query(Users).filter(Users.username == username).first()
+    if db_user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    db.delete(db_user)
+    db.commit()
+    return UsersDeleteUsername(username=username)
 
 
 # PROTECTED endpoint to create a new user

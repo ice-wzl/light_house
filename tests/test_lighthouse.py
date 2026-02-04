@@ -23,6 +23,29 @@ from server.server_helper.tasking_helper import (
     TaskingRead,
     TaskingDelete,
 )
+'''
+endpoints:
+
+POST /implants
+GET /implants
+GET /implants/{session}
+
+GET /results/{session}/{id}
+POST /results/{session}
+
+GET /tasks/{session}
+
+GET /tasking/{session}
+POST /tasking/{session}
+
+POST /token
+
+GET /users
+GET /users/{id}
+DELETE /users/delete/{user_id}
+POST /users/{create}
+
+'''
 
 from server.server_helper.results_helper import (
     Results,
@@ -227,7 +250,7 @@ def test_user_already_exists_req():
 
 def test_create_user_req():
     print(f"\tTesting: test_create_user_req()")
-    username = "system"
+    username = gen_fake_host_data(6) 
     password = "abcdefgh"
     data = {
         "username": username,
@@ -240,18 +263,7 @@ def test_create_user_req():
     assert response.json()["password"] == password
     assert len(response.json()["created_at"]) > 0
 
-
-'''
-FINISH
-'''
-def test_delete_user_req():
-    print(f"\tTesting: test_delete_user_req()")
-    response = client.delete("/delete/2", headers=get_token_headers_helper())
-    get_response_helper(response)
-
-
-def test_agent_checkin_req():
-    print(f"\tTesting: test_agent_checkin_req()")
+def generate_fake_session():
     data = {
         "session": gen_fake_session_name(),
         "hostname": gen_fake_host_data(8),
@@ -260,6 +272,29 @@ def test_agent_checkin_req():
         "jitter": 15,
     }
     response = client.post("/implants/", json=data)
+    return response
+
+def create_user_helper():
+    username = gen_fake_host_data(6) 
+    password = "abcdefgh"
+    data = {
+        "username": username,
+        "password": password,
+    }
+    response = client.post("/users/create", headers=get_token_headers_helper(), json=data)
+    return response.json()["username"]
+
+def test_delete_user_by_username_req():
+    print(f"\tTesting: test_detest_delete_user_by_username_reqlete_user_req()")
+    fake_user = create_user_helper()
+    response = client.delete(f"/users/delete/username/{fake_user}", headers=get_token_headers_helper())
+    get_response_helper(response)
+    assert response.status_code == 200
+
+
+def test_agent_checkin_req():
+    print(f"\tTesting: test_agent_checkin_req()")
+    response = generate_fake_session()
     get_response_helper(response)
     assert response.status_code == 200
 
@@ -315,3 +350,45 @@ def test_alt_methods_implants(method, expected_status):
     assert response.status_code == 405
     if method != "head":
         assert response.json()["detail"] == "Method Not Allowed"
+
+
+def get_implant_session_helper():
+    implants_all = client.get("/implants/", headers=get_token_headers_helper())
+    session_id = implants_all.json()[0]["session"]
+    response = client.get(f"/implants/{session_id}", headers=get_token_headers_helper())
+    return response.json()["session"], response.json()["last_checkin"]
+
+def test_health_checkin():
+    print(f"Testing: test_health_checkin()")
+    (implant_session_name, implant_last_checkin) = get_implant_session_helper()
+    response = client.get(f"/health/{implant_session_name}", headers=get_token_headers_helper())
+    get_response_helper(response)
+    assert response.json()["session"] == implant_session_name
+    assert response.json()["last_checkin"] != implant_last_checkin
+
+def test_health_checkin_not_found():
+    print(f"Testing: test_health_checkin_not_found()")
+    response = client.get(f"/health/aaaaaa", headers=get_token_headers_helper())
+    get_response_helper(response)
+    assert response.status_code == 404
+
+def get_implants_req_helper():
+    response = client.get("/implants/", headers=get_token_headers_helper())
+    return get_response_helper(response)
+
+def test_health_implant_death_req():
+    print(f"Testing: test_health_implant_death_req()")
+    implant_to_kill = generate_fake_session()
+    implant_to_kill_session = implant_to_kill.json()["session"]
+    implant_to_kill_alive = implant_to_kill.json()["alive"]
+    assert implant_to_kill_alive == True
+    response = client.get(f"/health/d/{implant_to_kill_session}", headers=get_token_headers_helper())
+    get_response_helper(response)
+    assert response.status_code == 200
+
+def test_health_implant_death_req_not_found():
+    print(f"Testing: test_health_implant_death_req()")
+    response = client.get(f"/health/d/aaaaaa", headers=get_token_headers_helper())
+    get_response_helper(response)
+    assert response.status_code == 404
+    
