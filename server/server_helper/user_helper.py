@@ -30,3 +30,6 @@ class UserRead(UserCreate):
 
 class UserDelete(BaseModel):
     id: int
+
+class UsersDeleteUsername(BaseModel):
+    username: str
