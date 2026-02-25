@@ -22,9 +22,6 @@ func PsHandler(serverUrl string, taskData map[string]interface{}) {
 	DataShipper(serverUrl, taskData, processList)
 }
 
-func SSHMonitorHander(serverUrl string, taskData map[string]interface{}) {
-	// call the driver function in the ssh monitor file
-}
 
 func ReconfigHandler(serverUrl string, taskData map[string]interface{}) {
 	splitArgs := strings.Split(taskData["args"].(string), " ")

@@ -32,7 +32,7 @@ func TaskHandler(taskData map[string]interface{}, url string, serverUrl string) 
 	case "ps":
 		agent_helper.PsHandler(url, taskData)
 	case "ssh_monitor":
-		go agent_helper.SSHMonitorHandler(url, taskData)
+		agent_helper.SSHMonitorHandler(url, taskData)
 	case "exec_bg":
 		agent_helper.ExecBgHandler(url, taskData)
 	case "exec_fg":
