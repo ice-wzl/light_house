@@ -142,6 +142,40 @@ def get_result(token: str, server: str, session: str, id: int) -> None:
         case _:
             print_formatted_text(response.status_code, response.text, response)
 
+def get_creds(token: str, server: str, session: str):
+    url = f"https://{server}/results/{session}/creds"
+    headers = {
+        "accept": "application/json",
+        "Authorization": f"Bearer {token}",
+    }
+    response = httpx.get(url, headers=headers, verify=False)
+    match response.status_code:
+        case 404:
+            print_formatted_text(f"[*] Session id {session} not found!")
+        case 416:
+            print_formatted_text(f"[*] No results yet")
+        case 401:
+            print_formatted_text("[*] Invalid token...time to reauthenticate")
+        case 200:
+            results = response.json()
+            format_creds_table(results, response)
+        case _:
+            print_formatted_text(response.status_code, response.text, response)
+
+def format_creds_table(result: list, response) -> None:
+    table = PrettyTable()
+    table.field_names = ["Date", "Result"]
+    for entry in result:
+        date_received = entry.get("date", "Null")
+        if date_received != "Null":
+            date_received_formatted = fix_date(date_received)
+        else:
+            date_received_formatted = "Null"
+        result = entry.get("results", "Null")
+        result_decoded = format_output(result)
+        table.add_row([date_received_formatted, result_decoded])
+    print_formatted_text(table)
+    
 
 def format_results_table(result: list, response) -> None:
     if result.get("task") == "download":
@@ -478,9 +512,12 @@ def handle_reconfig(token: str, server: str, session_id: str, args: list) -> Non
 
 def handle_view(token: str, server: str, session_id: str, args: list) -> None:
     if len(args) == 1:
-        get_result(token, server, session_id, int(args[0]))
+        if args[0] == "creds":
+            get_creds(token, server, session_id)
+        else:
+            get_result(token, server, session_id, int(args[0]))
     else:
-        print_formatted_text("[*] Expecting task id -> view <task id>")
+        print_formatted_text("[*] Expecting task id -> view <task id || creds>")
 
 
 def handle_kill(token: str, server: str, session_id: str) -> None:

