@@ -37,9 +37,10 @@ CREATE TABLE results (
 CREATE TABLE users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT UNIQUE NOT NULL,
+    salt TEXT NOT NULL,
     password TEXT NOT NULL,
     created_at TEXT NOT NULL
 );
 
 -- - Add default user to users table
-INSERT INTO users (username, password, created_at) VALUES ('admin', 'password', datetime('now'));
+INSERT INTO users (username, salt, password, created_at) VALUES ('admin', 'ttVeMnkl', 'f742224a7d5a0fef7ffe3a7faedbd01dabc7277e218ebdfd552bb6f8ac322be4171c282d15cefee76605596a315db148fdae74f7defd61487b11c39a12b3fd6a', datetime('now'));

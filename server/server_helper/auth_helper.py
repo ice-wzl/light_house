@@ -1,4 +1,5 @@
 #!/usr/bin/python3
+import hashlib 
 from pydantic import BaseModel
 from fastapi import FastAPI, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
@@ -16,6 +17,11 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 class Token(BaseModel):
     access_token: str
     token_type: str
+
+class CheckUser(BaseModel):
+    username: str
+    salt: str
+    password: str
 
 
 # for clients only to get jwt token upon successful login
@@ -44,3 +50,13 @@ def verify_token(token: str, Depends=(oauth2_scheme)):
         return payload
     except JWTError:
         raise credentials_exception
+
+
+def check_password_hash(salt: str, password_cleartext: str, password_hash: str):
+    password_combined = salt.encode("utf-8") + password_cleartext.encode("utf-8")
+    hashed = hashlib.sha512(password_combined)
+    if password_hash == hashed.hexdigest():
+        return True
+    return False
+
+

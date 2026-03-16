@@ -3,7 +3,7 @@ from typing import List
 
 from fastapi import APIRouter, HTTPException, Depends, Security
 
-from server.server_helper.user_helper import Users, UserRead, UserCreate, UserDelete, UsersDeleteUsername
+from server.server_helper.user_helper import Users, UserRead, UserCreate, UserDelete, UsersDeleteUsername, hash_password, get_salt
 from server.server_helper.auth_helper import oauth2_scheme, verify_token
 from server.server_helper.db import get_db, SessionLocal
 
@@ -113,8 +113,9 @@ def create_user(
         raise HTTPException(status_code=400, detail="Username cannot be blank")
     if len(user.password) < 8:
         raise HTTPException(status_code=400, detail="Password cannot be less than 8 characters")
-    user_data = user.model_dump(exclude={"created_at"})
-    db_user = Users(**user_data, created_at=datetime.now(timezone.utc).isoformat())
+    user_data = user.model_dump(exclude={"created_at", "password"})
+    salt = get_salt()
+    db_user = Users(**user_data, created_at=datetime.now(timezone.utc).isoformat(), salt=salt, password=hash_password(salt, user.password))
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
