@@ -36,6 +36,9 @@ class ResultsCreds(BaseModel):
     date: str
     results: str
 
+    class Config:
+        from_attributes = True
+
 # only client ensure auth
 class ResultsRead(ResultsCreate):
     id: int
