@@ -130,7 +130,7 @@ def test_create_user_req():
     get_response_helper(response)
     assert response.status_code == 200
     assert response.json()["username"] == username
-    assert response.json()["password"] == password
+    assert response.json()["password"] != None
     assert len(response.json()["created_at"]) > 0
 
 def test_delete_user_by_username_req():

@@ -99,17 +99,16 @@ def get_users(token: str, server: str) -> None:
     else:
         if isinstance(response.json(), list):
             table = PrettyTable()
-            table.field_names = ["ID", "Username", "Password", "Created At"]
+            table.field_names = ["ID", "Username", "Created At"]
             for user in response.json():
                 id = user.get("id")
                 username = user.get("username")
-                password = user.get("password")
                 created_at = user.get("created_at", "Null")
                 if created_at != "Null":
                     created_at_formatted = fix_date(created_at)
                 else:
                     created_at_formatted = "Null"
-                table.add_row([id, username, password, created_at_formatted])
+                table.add_row([id, username, created_at_formatted])
             print_formatted_text(table)
         else:
             print_formatted_text("[*] Invalid data format")
