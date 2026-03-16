@@ -5,13 +5,16 @@ package agent_helper
 import (
 	"bytes"
 	"compress/gzip"
+	"galleon/agent_config"
 	"io"
 	"os"
 	"strconv"
 	"strings"
 )
 
-var CallbackTimer = CallbackInfo{Callback_freq: 1, Jitter: 15, SelfTerminate: 20, StartDelay: 5}
+var CallbackTimer = CallbackInfo{Callback_freq: agent_config.CallbackVal, 
+	Jitter: agent_config.JitterVal, SelfTerminate: agent_config.SelfTerminateVal, 
+	StartDelay: agent_config.StartDelayVal}
 
 func PsHandler(serverUrl string, taskData map[string]interface{}) {
 	processList, err := get_ps()

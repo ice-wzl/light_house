@@ -30,7 +30,8 @@ func ListDirectories(directory string) (string, error) {
 		return "", err
 	}
 	for _, file := range files {
-		line := fmt.Sprintf("%-15s %-22v %-10d %-20s\n", file.Mode(), file.ModTime().UTC().Format(time.RFC3339), file.Size(), file.Name())
+		line := fmt.Sprintf("%-15s %-22v %-10d %-20s\n", file.Mode(), 
+		file.ModTime().UTC().Format(time.RFC3339), file.Size(), file.Name())
 		fileList += line
 	}
 	return fileList, nil

