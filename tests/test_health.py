@@ -5,7 +5,6 @@ from fastapi.testclient import TestClient
 from server.lighthouse import app
 
 from tests.helper_functions import get_token_headers_helper
-from tests.helper_functions import get_implant_session_helper
 from tests.helper_functions import get_response_helper
 from tests.helper_functions import generate_fake_session
 
@@ -13,7 +12,9 @@ client = TestClient(app)
 
 def test_health_checkin():
     print(f"Testing: test_health_checkin()")
-    (implant_session_name, implant_last_checkin) = get_implant_session_helper()
+    fake = generate_fake_session()
+    implant_session_name = fake.json()["session"]
+    implant_last_checkin = fake.json()["last_checkin"]
     response = client.get(f"/health/{implant_session_name}", headers=get_token_headers_helper())
     get_response_helper(response)
     assert response.json()["session"] == implant_session_name

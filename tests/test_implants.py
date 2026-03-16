@@ -40,8 +40,8 @@ def test_get_implants_req():
 
 def test_get_implant_session():
     print(f"Testing: test_get_implant_session()")
-    implants_all = client.get("/implants/", headers=get_token_headers_helper())
-    session_id = implants_all.json()[0]["session"]
+    fake = generate_fake_session()
+    session_id = fake.json()["session"]
     print(session_id)
     response = client.get(f"/implants/{session_id}", headers=get_token_headers_helper())
     get_response_helper(response)
