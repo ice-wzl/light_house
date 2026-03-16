@@ -142,6 +142,16 @@ def get_result(token: str, server: str, session: str, id: int) -> None:
         case _:
             print_formatted_text(response.status_code, response.text, response)
 
+def get_creds(token: str, server: str, session: str):
+    url = f"https://{server}/results/{session}/creds"
+    headers = {
+        "accept": "application/json",
+        "Authorization": f"Bearer {token}",
+    }
+    response = httpx.get(url, headers=headers, verify=False)
+    print_formatted_text(response.status_code)
+    print_formatted_text(response.json())
+
 
 def format_results_table(result: list, response) -> None:
     if result.get("task") == "download":
@@ -478,9 +488,12 @@ def handle_reconfig(token: str, server: str, session_id: str, args: list) -> Non
 
 def handle_view(token: str, server: str, session_id: str, args: list) -> None:
     if len(args) == 1:
-        get_result(token, server, session_id, int(args[0]))
+        if args[0] == "creds":
+            get_creds(token, server, session_id)
+        else:
+            get_result(token, server, session_id, int(args[0]))
     else:
-        print_formatted_text("[*] Expecting task id -> view <task id>")
+        print_formatted_text("[*] Expecting task id -> view <task id || creds>")
 
 
 def handle_kill(token: str, server: str, session_id: str) -> None:
