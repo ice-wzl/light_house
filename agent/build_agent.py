@@ -26,7 +26,7 @@ def build_dir_setup():
         os.mkdir(BUILD_DIR)
 
 
-def build_galleon(arch: str):
+def build_galleon(arch: str, debug: bool):
     # need to add ldflags
     env = os.environ.copy()
     env["GOOS"] = "linux"
@@ -34,8 +34,10 @@ def build_galleon(arch: str):
     env["CGO_ENABLED"] = "0"
 
     OUTFILE = f"galleon_{arch}.elf"
-
-    cmd = ["go", "build", "-ldflags=-s -w", "-o", f"{BUILD_DIR}/{OUTFILE}"]
+    if debug:
+        cmd = ["go", "build", "-tags", "debug", "-ldflags=-s -w", "-o", f"{BUILD_DIR}/{OUTFILE}"]
+    else:
+        cmd = ["go", "build", "-ldflags=-s -w", "-o", f"{BUILD_DIR}/{OUTFILE}"]
 
     proc = subprocess.run(cmd, capture_output=True, check=False)
     print("-----GO BUILD STDOUT-----")
@@ -71,7 +73,15 @@ if __name__ == "__main__":
         dest="arch",
         type=str,
     )
+    opts.add_argument(
+        "-d",
+        "--debug",
+        help="Enable printf debug statements",
+        required=True,
+        dest="debug",
+        action="store_true"
+    )
     args = opts.parse_args()
 
     build_dir_setup()
-    build_galleon(args.arch)
+    build_galleon(args.arch, args.debug)
