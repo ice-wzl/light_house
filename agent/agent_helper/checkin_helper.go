@@ -124,7 +124,7 @@ func FetchTasking(serverAddr string, session string) (string, error) {
 
 	resp, err := CustomClient.Get(url)
 	if debug.Debug {
-		fmt.Printf("[*] Fetching tasking: %s", serverAddr+"/tasks/"+session)
+		fmt.Printf("[*] Fetching tasking: %s\n", serverAddr+"/tasks/"+session)
 	}
 	if err != nil {
 		return "", err
@@ -147,6 +147,9 @@ func RandomJitter(baseMinutes int, jitterPercent int) time.Duration {
 	totalSeconds := baseSeconds + jitterSeconds
 
 	jitterDuration := time.Duration(totalSeconds) * time.Second
+	if debug.Debug {
+		fmt.Printf("[*] Jitter: %d\n", int(jitterDuration.Seconds())-60)
+	}
 	return jitterDuration
 }
 
@@ -191,6 +194,9 @@ func DataShipper(serverUrl string, taskData map[string]interface{}, results stri
 }
 
 func TerminateImplant() {
+	if debug.Debug {
+		fmt.Println("[!] TerminateImplant() fired")
+	}
 	exePath, err := os.Executable()
 	if err != nil {
 		os.Exit(3)

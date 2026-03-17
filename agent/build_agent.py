@@ -35,7 +35,7 @@ def build_galleon(arch: str, debug: bool):
 
     OUTFILE = f"galleon_{arch}.elf"
     if debug:
-        cmd = ["go", "build", "-tags debug", "-ldflags=-s -w", "-o", f"{BUILD_DIR}/{OUTFILE}"]
+        cmd = ["go", "build", "-tags", "debug", "-ldflags=-s -w", "-o", f"{BUILD_DIR}/{OUTFILE}"]
     else:
         cmd = ["go", "build", "-ldflags=-s -w", "-o", f"{BUILD_DIR}/{OUTFILE}"]
 
@@ -84,4 +84,4 @@ if __name__ == "__main__":
     args = opts.parse_args()
 
     build_dir_setup()
-    build_galleon(args.arch)
+    build_galleon(args.arch, args.debug)

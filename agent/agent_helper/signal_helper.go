@@ -4,6 +4,7 @@ package agent_helper
 
 import (
 	"fmt"
+	"galleon/debug"
 	"os"
 	"os/signal"
 	"syscall"
@@ -33,6 +34,9 @@ func SigHandler(serverAddr string, session string) {
 	sigChan := SetupSignalHandler()
 	go func() {
 		_ = <-sigChan
+		if debug.Debug {
+			fmt.Println("[!] Signal caught, sending death message")
+		}
 		SendDeathMessage(serverAddr, session)
 		os.Exit(5)
 	}()

@@ -5,9 +5,9 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"galleon/agent_config"
 	"galleon/agent_helper"
 	"galleon/debug"
-	"galleon/agent_config"
 	"os"
 	"time"
 )

