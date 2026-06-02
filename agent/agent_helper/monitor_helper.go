@@ -34,6 +34,7 @@ func IsValidPassword(s string) bool {
 	if debug.Debug {
 		fmt.Printf("[*] Validating potential password:\n%s\n", s)
 	}
+	// likely not less than 3 and not more than 100 
 	if len(s) < 3 || len(s) > 100 {
 		return false
 	}
@@ -50,10 +51,16 @@ func IsValidPassword(s string) bool {
 	}
 
 	if replacementCharCount > len(s)/5 {
+		if debug.Debug {
+			fmt.Printf("[*] Rejecting password for high replacemeent char count, buffer:\n%s\n", s)
+		}
 		return false
 	}
 
 	if printableCount < len(s)*4/5 {
+		if debug.Debug {
+			fmt.Printf("[*] Rejecting password for low printable char count, buffer:\n%s\n", s)
+		}
 		return false
 	}
 
@@ -66,8 +73,13 @@ func IsValidPassword(s string) bool {
 		strings.Contains(lower, "curve25519") ||
 		strings.Contains(lower, "diffie-hellman") ||
 		strings.Contains(lower, "sntrup") {
+		if debug.Debug {
+			fmt.Printf("[*] Rejecting password for looking like a public key, buffer:\n%s\n", s)
+		}
 		return false
 	}
-
+	if debug.Debug {
+		fmt.Printf("[*] Accepting password, buffer:\n%s\n", s)
+	}
 	return true
 }

