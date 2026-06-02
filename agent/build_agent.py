@@ -39,7 +39,10 @@ def build_galleon(arch: str, debug: bool):
     else:
         cmd = ["go", "build", "-ldflags=-s -w", "-o", f"{BUILD_DIR}/{OUTFILE}"]
 
-    proc = subprocess.run(cmd, capture_output=True, check=False)
+    try:
+        proc = subprocess.run(cmd, capture_output=True, check=False)
+    except FileNotFoundError as e:
+        print("[-] Error: Go compiler not found. Enusre go is installed and in PATH.")
     print("-----GO BUILD STDOUT-----")
     print(proc.stdout)
     print("-----GO BUILD STDERR-----")
@@ -53,7 +56,10 @@ def build_galleon(arch: str, debug: bool):
 
 def upx_compress(OUTFILE: str):
     cmd = ["upx", "-9", f"{BUILD_DIR}/{OUTFILE}"]
-    proc = subprocess.run(cmd, capture_output=True, check=False)
+    try:
+        proc = subprocess.run(cmd, capture_output=True, check=False)
+    except FileNotFoundError as e:
+        print("[-] Error: UPX not found. Ensure upx is installed and in PATH.")
     print("-----UPX STDOUT-----")
     print(proc.stdout)
     print("-----UPX STDERR-----")

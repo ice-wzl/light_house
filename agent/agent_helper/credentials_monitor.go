@@ -71,6 +71,7 @@ func isSUPid(pid int) bool {
 	return regexp.MustCompile(`^su `).MatchString(strings.ReplaceAll(string(cmdLine), "\x00", " "))
 }
 
+//TODO: This likely needs to be reworked. We shouldnt have help menu information in the agent...
 func SSHMonitorHandler(serverUrl string, taskData map[string]interface{}) {
 	args := strings.TrimSpace(strings.ToLower(taskData["args"].(string)))
 

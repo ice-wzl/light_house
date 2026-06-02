@@ -59,6 +59,11 @@ func main() {
 
 	os.Clearenv()
 	retryCounter := 0
+	if debug.Debug {
+		fmt.Println("[*] Starting Galleon Agent")
+		fmt.Println("[*] Debug mode enabled")
+		fmt.Printf("retryCounter %v\n", retryCounter)
+	}
 	initialInfo := agent_helper.GatherInfo()
 	time.Sleep(time.Duration(agent_helper.CallbackTimer.StartDelay) * time.Second)
 	agent_helper.InitialCheckin(agent_config.ServerUrl, initialInfo)

