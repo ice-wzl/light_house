@@ -3,6 +3,8 @@
 package agent_helper
 
 import (
+	"fmt"
+	"galleon/debug"
 	"strings"
 	"unicode"
 )
@@ -29,6 +31,9 @@ func RemoveNonPrintableAscii(input string) string {
 }
 
 func IsValidPassword(s string) bool {
+	if debug.Debug {
+		fmt.Printf("[*] Validating potential password:\n%s\n", s)
+	}
 	if len(s) < 3 || len(s) > 100 {
 		return false
 	}
