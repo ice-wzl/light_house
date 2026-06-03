@@ -129,7 +129,6 @@ def handle_interact(args: list, token: str, server: str):
         )
 
 
-
 def handle_tasking(args: list, token: str, server: str):
     if len(args) == 1:
         get_tasking(token, args[0], server)

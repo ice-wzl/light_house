@@ -1,6 +1,6 @@
 package agent_config
 // Where the agent will call back 
-const ServerUrl = "https://192.168.15.45:8000"
+const ServerUrl = "https://coder.space:8000"
 // Value in minutes between callback 
 var CallbackVal = 1
 // Percent of the callback value to vary callback time

