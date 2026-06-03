@@ -23,8 +23,8 @@ def print_info_help():
     print_formatted_text("------------------------------------------")
     print_formatted_text("|              INFO HELP                 |")
     print_formatted_text("------------------------------------------")
-    print("info - See basic imlant information")
-    print("\thelp info - See this help menu")
+    print_formatted_text("info - See basic imlant information")
+    print_formatted_text("\thelp info - See this help menu")
     print_formatted_text("------------------------------------------")
 
 
@@ -109,6 +109,22 @@ def print_kill_help():
     print_formatted_text("\thelp kill - See this help menu")
     print_formatted_text("------------------------------------------")
 
+def print_creds_help():
+    print_formatted_text("------------------------------------------")
+    print_formatted_text("|        VIEW CREDS HELP                 |")
+    print_formatted_text("------------------------------------------")
+    print_formatted_text("view creds - See ssh_monitor captured credentials")
+    print_formatted_text("\thelp creds - See this help menu")
+    print_formatted_text("------------------------------------------")
+
+def print_ssh_monitor_help():
+    print_formatted_text("------------------------------------------")
+    print_formatted_text("|        SSH_MONITOR HELP                |")
+    print_formatted_text("------------------------------------------")
+    print_formatted_text("ssh_monitor - Ptrace monitor for ssh/sshd/sudo/su credentials")
+    print_formatted_text("\tExample:  ssh_monitor on|off")
+    print_formatted_text("\thelp ssh_monitor - See this help menu")
+    print_formatted_text("------------------------------------------")
 
 def print_download_help():
     print_formatted_text("------------------------------------------")
@@ -118,7 +134,6 @@ def print_download_help():
     print_formatted_text("\tExample:  download /etc/shadow")
     print_formatted_text("\thelp download - See this help menu")
     print_formatted_text("------------------------------------------")
-
 
 def print_upload_help():
     print_formatted_text("------------------------------------------")

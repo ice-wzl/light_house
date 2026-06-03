@@ -461,6 +461,10 @@ def handle_help(args: list):
             print_view_help()
         case "kill":
             print_kill_help()
+        case "creds":
+            print_creds_help()
+        case "ssh_monitor":
+            print_ssh_monitor_help()
         case "download":
             print_download_help()
         case "upload":
