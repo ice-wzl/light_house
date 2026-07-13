@@ -83,7 +83,6 @@ if __name__ == "__main__":
         "-d",
         "--debug",
         help="Enable printf debug statements",
-        required=True,
         dest="debug",
         action="store_true"
     )
