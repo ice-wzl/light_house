@@ -17,6 +17,7 @@ from prompt_toolkit import print_formatted_text
 # local imports
 from client.client_helper.user_manager import fix_date
 from client.client_helper.tasking_manager import get_tasking, send_task, format_args
+from client.client_helper.logger import print_error, print_success
 from client.client_helper.help_manager import (
     print_info_help,
     print_download_help,
@@ -58,6 +59,7 @@ cmds_session = WordCompleter(
         "ssh_monitor",
         "tasking",
         "view",
+        "delete",
         "reconfig",
         "kill",
         "help",
@@ -76,7 +78,7 @@ def format_output(output: str) -> str:
         decoded_base = base64.b64decode(decoded_bytes.decode("utf-8")).decode("utf-8")
         return decoded_base
     except (binascii.Error, UnicodeDecodeError, ValueError) as e:
-        print_formatted_text(f"[*] Error decoding output: {e}")
+        print_error(f"Error decoding output: {e}")
         return ""
 
 
@@ -131,11 +133,11 @@ def get_result(token: str, server: str, session: str, id: int) -> None:
     response = httpx.get(url, headers=headers, verify=False)
     match response.status_code:
         case 404:
-            print_formatted_text(f"[*] Session id {session} not found!")
+            print_error(f"Session id {session} not found!")
         case 416:
-            print_formatted_text(f"[*] ID {id} not found for session {session}")
+            print_error(f"ID {id} not found for session {session}")
         case 401:
-            print_formatted_text("[*] Invalid token...time to reauthenticate")
+            print_error(f"Invalid token...time to reauthenticate")
         case 200:
             result = response.json()
             format_results_table(result, response)
@@ -151,11 +153,11 @@ def get_creds(token: str, server: str, session: str):
     response = httpx.get(url, headers=headers, verify=False)
     match response.status_code:
         case 404:
-            print_formatted_text(f"[*] Session id {session} not found!")
+            print_error(f"Session id {session} not found!")
         case 416:
-            print_formatted_text(f"[*] No results yet")
+            print_error(f"No results yet")
         case 401:
-            print_formatted_text("[*] Invalid token...time to reauthenticate")
+            print_error("Invalid token...time to reauthenticate")
         case 200:
             results = response.json()
             format_creds_table(results, response)
@@ -192,7 +194,7 @@ def format_results_table(result: list, response) -> None:
         date_received_formatted = "Null"
     task = result.get("task", "Null")
     if task == "upload":
-        print_formatted_text("[+] No output for upload commands")
+        print_error("No output for upload commands")
         return
     args = result.get("args", "Null")
     table.add_row([id, session_id, date_received_formatted, task, args])
@@ -262,18 +264,18 @@ def get_sessions(token: str, server: str) -> None:
         response = httpx.get(url, headers=headers, verify=False)
         if (
             response.status_code == 401
-            and response.json().get("detail") == "Bad Credentials"
+            and response.json().get("detail") == "Bad credentials"
         ):
-            print_formatted_text("[*] Invalid token...time to reauthenticate")
+            print_error("Invalid token...time to reauthenticate")
 
         elif response.status_code == 200 and isinstance(response.json(), list):
             # proper json array
             format_sessions(response.json())
         else:
-            print_formatted_text("[*] Invalid data format")
+            print_error("Invalid data format")
             print_formatted_text(response.status_code, response.text, response)
     except httpx.ConnectError as e:
-        print_formatted_text("[-] Connection Refused to Lighthouse")
+        print_error("Connection Refused to Lighthouse")
 
 
 def test_session(token: str, server: str, session: str) -> int:
@@ -313,15 +315,31 @@ def get_session(token: str, server: str, session: str) -> int:
             session = response.json()
             generate_session_table(session)
         case 404:
-            print_formatted_text(f"[*] Session id {session} not found!")
+            print_error(f"Session id {session} not found!")
         case 401:
-            if response.json().get("detail") == "Bad Credentials":
-                print_formatted_text("[*] Invalid token...time to reauthenticate")
+            if response.json().get("detail") == "Bad credentials":
+                print_error("Invalid token...time to reauthenticate")
         case 410:
             print_formatted_text(f"[*] {response.json().get("detail")}")
         case _:
             print_formatted_text(response.status_code, response.text, response)
     return response.status_code
+
+def delete_tasking(token: str, server: str, session: str, tasking_id: str):
+    url = f"https://{server}/{session}/{tasking_id}"
+    headers = {
+        "accept": "application/json",
+        "Authorization": f"Bearer {token}",
+    }
+    response = httpx.delete(url, headers=headers, verify=False)
+    match response.status_code:
+        case 200:
+            print_success("Tasking successfully deleted")
+        case 404:
+            print_error(f"Session id {session} or id {tasking_id} not found!")
+        case 500:
+            print_error(f"Error deleting tasking: {response.text}")
+    response.status_code
 
 
 def generate_session_table(session: list):
@@ -426,6 +444,8 @@ def session_router(
             handle_view(token, server, session_id, args)
         case "kill":
             handle_kill(token, server, session_id)
+        case "delete":
+            handle_delete(token, server, session_id, tasking_id)
         case "ssh_monitor":
             handle_ssh_monitor(token, server, session_id, args)
         case "download":
