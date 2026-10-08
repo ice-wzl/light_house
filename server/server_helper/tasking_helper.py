@@ -38,4 +38,3 @@ class TaskingRead(TaskingCreate):
 
 class TaskingDelete(BaseModel):
     id: int
-    session: str

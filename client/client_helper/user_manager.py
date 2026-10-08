@@ -93,7 +93,7 @@ def get_users(token: str, server: str) -> None:
         print_formatted_text(response.status_code, response.text, response)
     elif (
         response.status_code == 401
-        and response.json().get("detail") == "Bad Credentials"
+        and response.json().get("detail") == "Bad credentials"
     ):
         print_formatted_text("[*] Invalid token...time to reauthenticate")
     else:
@@ -145,7 +145,7 @@ def get_user(token: str, server: str, id: int) -> None:
         print_formatted_text(table)
     elif (
         response.status_code == 401
-        and response.json().get("detail") == "Bad Credentials"
+        and response.json().get("detail") == "Bad credentials"
     ):
         print_formatted_text("[*] Invalid token...time to reauthenticate")
         return

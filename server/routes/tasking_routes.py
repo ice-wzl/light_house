@@ -81,4 +81,24 @@ def read_taskings(
     )
     return tasking
 
-
+#TODO: test and verify this endpoint
+@router.delete("/{session}/{id}", response_model=Tasking[TaskingDelete])
+def delete_tasking(
+    session: str,
+    id: str,
+    db: SessionLocal = Depends(get_db),  # type: ignore
+    token: str = Security(oauth2_scheme),
+):
+    verify_token(token)
+    db_implant = db.query(Implant).filter(Implant.session == session and Implant.id == id).first()
+    # debugging 
+    print(db_implant)
+    if not db_implant:
+        raise HTTPException(status_code=404, detail="Session or id not found")
+    try:
+        db.delete(Tasking).filter(Tasking.session == session, Tasking.id == id)
+        return
+        return 
+    except Exception as e:
+        print(e)
+        raise HTTPException(status_code=500, detail="Error deleting tasking")

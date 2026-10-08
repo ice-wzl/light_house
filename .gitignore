@@ -1,13 +1,1 @@
-client/.auth-token
-db/database.db
-venv/*
-__pycache__/*
-client/__pycache__/*
-server/__pycache__/*
-server/server_helper/__pycache__/*
-client/client_helper/__pycache__/*
-client/client_helper/__pycache__/session_manager.cpython-313.pyc
-agent/build/*
-client/client_helper/__pycache__/session_manager.cpython-313.pyc
-client/client_helper/__pycache__/tasking_manager.cpython-313.pyc
-client/client_helper/__pycache__/user_manager.cpython-313.pyc
+agent/agent_helper/bpf/vmlinux.h
