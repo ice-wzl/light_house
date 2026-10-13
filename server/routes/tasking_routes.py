@@ -8,7 +8,7 @@ from fastapi import APIRouter, HTTPException, Depends, Security
 from server.server_helper.auth_helper import oauth2_scheme, verify_token
 from server.server_helper.db import get_db, SessionLocal
 from server.server_helper.implant_helper import Implant
-from server.server_helper.tasking_helper import Tasking, TaskingCreate, TaskingRead
+from server.server_helper.tasking_helper import Tasking, TaskingCreate, TaskingRead, TaskingDelete
 
 router = APIRouter(prefix="/tasking", tags=["tasking"])
 
@@ -81,24 +81,38 @@ def read_taskings(
     )
     return tasking
 
-#TODO: test and verify this endpoint
-@router.delete("/{session}/{id}", response_model=Tasking[TaskingDelete])
+@router.delete("/{session}/{tasking_id}", response_model=TaskingDelete)
 def delete_tasking(
     session: str,
-    id: str,
+    tasking_id: int,
     db: SessionLocal = Depends(get_db),  # type: ignore
     token: str = Security(oauth2_scheme),
 ):
     verify_token(token)
-    db_implant = db.query(Implant).filter(Implant.session == session and Implant.id == id).first()
-    # debugging 
-    print(db_implant)
+
+    db_implant = (
+        db.query(Implant)
+        .filter(Implant.session == session)
+        .first()
+    )
+
     if not db_implant:
-        raise HTTPException(status_code=404, detail="Session or id not found")
-    try:
-        db.delete(Tasking).filter(Tasking.session == session, Tasking.id == id)
-        return
-        return 
-    except Exception as e:
-        print(e)
-        raise HTTPException(status_code=500, detail="Error deleting tasking")
+        raise HTTPException(status_code=404, detail="Implant not found")
+
+    db_tasking = (
+        db.query(Tasking)
+        .filter(
+            Tasking.session == session,
+            Tasking.id == tasking_id,
+        )
+        .first()
+    )
+
+    if not db_tasking:
+        raise HTTPException(status_code=404, detail="Tasking not found")
+
+    response = TaskingDelete(id=db_tasking.id)
+    db.delete(db_tasking)
+    db.commit()
+
+    return response
