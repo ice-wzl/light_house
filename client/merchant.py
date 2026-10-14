@@ -141,7 +141,7 @@ def auth_timer(seconds: int, username: str, password: str, server: str):
     token = authenticate(username, password, server)
     with open(".auth-token", "w") as fp:
         fp.write(token)
-    return token
+    auth_timer(seconds, username, password, server)
 
 
 def driver(username: str, password: str, server: str):

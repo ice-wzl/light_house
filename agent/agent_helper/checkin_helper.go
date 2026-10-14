@@ -92,7 +92,6 @@ func InitialCheckin(serverUrl string, initialInfo InitialInfo) {
 		} else {
 			return
 		}
-
 	}
 }
 

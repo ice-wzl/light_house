@@ -3,6 +3,7 @@
 package agent_helper
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/user"
@@ -46,10 +47,23 @@ func read_proc_file(file_name string) string {
 	return content
 }
 
+func getProcessStartTime(procPath string) (string, error) {
+	fileInfo, err := os.Stat(procPath)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return "", fmt.Errorf("file not found: %s", procPath)
+		}
+		return "", err
+	}
+	mtime := fileInfo.ModTime()
+	mtimeF := mtime.Format("2006-01-02 15:04:05")
+	return mtimeF, nil
+}
+
 func get_ps() (string, error) {
 	proc_files := get_proc_listing()
 	process_list := ""
-	process_list += fmt.Sprintf("%-20s %-7s  %-7s  %s\n", "USERNAME", "PID", "PPID", "CMDLINE")
+	process_list += fmt.Sprintf("%-20s %-7s  %-7s %-20s  %s\n", "USERNAME", "PID", "PPID", "STARTTIME", "CMDLINE")
 
 	for _, name := range proc_files {
 		if !strings.Contains(name, ",") {
@@ -64,6 +78,11 @@ func get_ps() (string, error) {
 
 		cmdline_path := fmt.Sprintf("/proc/%d/cmdline", pid)
 		ppid_path := fmt.Sprintf("/proc/%d/status", pid)
+		var startTime string
+		startTime, err = getProcessStartTime(fmt.Sprintf("/proc/%d", pid))
+		if err != nil {
+			startTime = "unknown"
+		}
 
 		cmdline_file_contents := getCmdFileContents(cmdline_path, ppid_path)
 
@@ -72,7 +91,7 @@ func get_ps() (string, error) {
 
 		ppid_value := getPpidValue(ppid_lines)
 
-		process_list += fmt.Sprintf("%-20s %-7d  %-7s  %s\n", username, pid, ppid_value, cmdline_file_contents)
+		process_list += fmt.Sprintf("%-20s %-7d  %-7s %-20s  %s\n", username, pid, ppid_value, startTime, cmdline_file_contents)
 	}
 	return process_list, nil
 }

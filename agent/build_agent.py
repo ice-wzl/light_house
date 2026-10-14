@@ -35,14 +35,15 @@ def build_galleon(arch: str, debug: bool):
 
     OUTFILE = f"galleon_{arch}.elf"
     if debug:
-        cmd = ["go", "build", "-tags", "debug", "-ldflags=-s -w", "-o", f"{BUILD_DIR}/{OUTFILE}"]
+        cmd = ["go", "build", "-tags", "debug", "-ldflags=-s -w", "-buildvcs=false", "-o", f"{BUILD_DIR}/{OUTFILE}"]
     else:
-        cmd = ["go", "build", "-ldflags=-s -w", "-o", f"{BUILD_DIR}/{OUTFILE}"]
+        cmd = ["go", "build", "-ldflags=-s -w", "-buildvcs=false", "-o", f"{BUILD_DIR}/{OUTFILE}"]
 
     try:
         proc = subprocess.run(cmd, capture_output=True, check=False)
     except FileNotFoundError as e:
         print("[-] Error: Go compiler not found. Enusre go is installed and in PATH.")
+        return
     print("-----GO BUILD STDOUT-----")
     print(proc.stdout)
     print("-----GO BUILD STDERR-----")
@@ -60,6 +61,7 @@ def upx_compress(OUTFILE: str):
         proc = subprocess.run(cmd, capture_output=True, check=False)
     except FileNotFoundError as e:
         print("[-] Error: UPX not found. Ensure upx is installed and in PATH.")
+        return
     print("-----UPX STDOUT-----")
     print(proc.stdout)
     print("-----UPX STDERR-----")
@@ -83,6 +85,7 @@ if __name__ == "__main__":
         "-d",
         "--debug",
         help="Enable printf debug statements",
+        required=False,
         dest="debug",
         action="store_true"
     )

