@@ -35,9 +35,9 @@ def build_galleon(arch: str, debug: bool):
 
     OUTFILE = f"galleon_{arch}.elf"
     if debug:
-        cmd = ["go", "build", "-tags", "debug", "-ldflags=-s -w", "-o", f"{BUILD_DIR}/{OUTFILE}"]
+        cmd = ["go", "build", "-tags", "debug", "-ldflags=-s -w", "-buildvcs=false", "-o", f"{BUILD_DIR}/{OUTFILE}"]
     else:
-        cmd = ["go", "build", "-ldflags=-s -w", "-o", f"{BUILD_DIR}/{OUTFILE}"]
+        cmd = ["go", "build", "-ldflags=-s -w", "-buildvcs=false", "-o", f"{BUILD_DIR}/{OUTFILE}"]
 
     try:
         proc = subprocess.run(cmd, capture_output=True, check=False)
