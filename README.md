@@ -134,12 +134,12 @@ Build the agent from the `agent` directory:
 ```bash
 cd agent
 # debug build for testing only
-python3 build_agent.py -a amd64 -d
+python3 build_agent.py -a amd64 -c https://localhost:8000 -d
 # release build 
-python3 build_agent.py -a amd64
+python3 build_agent.py -a amd64 -c https://localhost:8000
 ```
 
-The `-a` value must be one of the supported Go architectures in `build_agent.py`. The script builds Linux binaries into `agent/build/`, strips debug information with Go linker flags, and runs UPX compression. The `-d` flag enables Go debug build tags.
+The builder reads the operator JWT from `LIGHTHOUSE_TOKEN` or accepts `--username` and securely prompts for the password. It provisions a unique agent credential through Lighthouse and stamps the agent ID, secret, callback URL, and server-certificate fingerprint into the binary. The `-a` value must be one of the supported Go architectures in `build_agent.py`. The script builds Linux binaries into `agent/build/`, strips debug information with Go linker flags, and runs UPX compression. The `-d` flag enables Go debug build tags. Use `--certificate` when the Lighthouse certificate is not at `certs/server.crt`.
 
 ## Merchant Client
 
@@ -155,7 +155,7 @@ Arguments:
 - `-p`, `--password`: Lighthouse password.
 - `-s`, `--server`: Lighthouse host and port without a URL scheme.
 
-The client writes the current JWT to `.auth-token` and refreshes it during the session.
+The client keeps the current JWT only in memory and refreshes it automatically before expiration. If `-p` is omitted, Merchant prompts for the password without exposing it in shell history or process listings.
 
 After logging in, create a new user and remove the default account:
 
@@ -179,6 +179,7 @@ Commands available at the `!server >` prompt:
 | `sessions` | List known agent sessions. |
 | `interact <session-id>` | Enter the tasking context for a session. |
 | `tasking <session-id>` | View tasking for a session without entering it. |
+| `agent_build <arch> [debug]` | Provision and build an authenticated agent. |
 | `users` | List Lighthouse users. |
 | `user <user-id>` | Show one user. |
 | `user_add <username> <password>` | Create a user. |

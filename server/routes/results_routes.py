@@ -4,10 +4,12 @@ from datetime import datetime, timezone
 from typing import List
 
 from fastapi import APIRouter, HTTPException, Depends, Security
+from sqlalchemy.exc import SQLAlchemyError
 
 from server.server_helper.auth_helper import oauth2_scheme, verify_token
 from server.server_helper.db import get_db, SessionLocal
 from server.server_helper.implant_helper import Implant
+from server.server_helper.provision_helper import Provision, authenticate_active_agent
 from server.server_helper.tasking_helper import Tasking
 from server.server_helper.results_helper import Results, ResultsCreate, ResultsRead, ResultsCreds
 
@@ -65,7 +67,10 @@ def read_result(
 # recieve tasking output from agent based on session id, marks task complete = True
 @router.post("/{session}", response_model=ResultsCreate)
 def create_results(
-    session: str, results: ResultsCreate, db: SessionLocal = Depends(get_db)  # type: ignore
+    session: str,
+    results: ResultsCreate,
+    db: SessionLocal = Depends(get_db),  # type: ignore
+    provision: Provision = Depends(authenticate_active_agent),
 ):
     """
     The endpoint where agents will send result output back to the lighthouse server
@@ -75,6 +80,9 @@ def create_results(
     :return db_task: The successful tasking result or 404 if the session is not found
     or 400 if the results are not properly formatted
     """
+    if session != provision.id:
+        raise HTTPException(status_code=403, detail="Agent cannot use this session")
+
     current_time = datetime.now(timezone.utc).isoformat()
     db_implant = db.query(Implant).filter(Implant.session == session).first()
     if not db_implant:
@@ -87,37 +95,54 @@ def create_results(
             raise HTTPException(status_code=400, detail=f"Invalid encoded args: {e}")
     else:
         decoded_args = ""
+    db_tasking = (
+        db.query(Tasking)
+        .filter(Tasking.session == session, Tasking.id == results.tasking_id)
+        .first()
+    )
+    if db_tasking is None:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    if results.task != db_tasking.task:
+        raise HTTPException(status_code=400, detail="Result does not match task")
+
+    if db_tasking.task != "ssh_monitor":
+        existing_result = (
+            db.query(Results)
+            .filter(
+                Results.session == session,
+                Results.tasking_id == results.tasking_id,
+            )
+            .first()
+        )
+        if existing_result is not None:
+            return existing_result
+
+        if db_tasking.complete not in {"False", "Pending"}:
+            raise HTTPException(status_code=409, detail="Task is already complete")
+
     results_data = results.model_dump(exclude={"session", "date"})
     results_data["args"] = decoded_args
 
     if results_data["task"] == "reconfig":
         update_callback_freq(session, results_data, db)
 
-    # you will need to decode the results eventually
     db_task = Results(**results_data, session=session, date=current_time)
-    db.add(db_task)
-    db.commit()
-    db.refresh(db_task)
-    # Mark the task as complete (break this out into its own function later)
-    db_tasking = (
-        db.query(Tasking)
-        .filter(Tasking.session == session, Tasking.id == results.tasking_id)
-        .first()
-    )
-    if db_tasking:
+    try:
+        db.add(db_task)
         db_tasking.complete = "True"
         db.commit()
+        db.refresh(db_task)
         db.refresh(db_tasking)
-    else:
-        print("Task not found, cannot update completion status in the tasking table.")
-        raise HTTPException(status_code=404, detail="Task not found")
+    except SQLAlchemyError:
+        db.rollback()
+        raise
+
     return db_task
 
 
-def update_callback_freq(session: str, results_data: dict, db: SessionLocal = Depends(get_db)):  # type: ignore
+def update_callback_freq(session: str, results_data: dict, db: SessionLocal):  # type: ignore
     new_callback_freq = results_data["args"].split(" ")[0]
     implant = db.query(Implant).filter(Implant.session == session).first()
     if implant is not None and implant.alive:
         implant.callback_freq = new_callback_freq
-        db.commit()
-        db.refresh(implant)

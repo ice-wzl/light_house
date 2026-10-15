@@ -1,4 +1,6 @@
 import pytest
+import hashlib
+import secrets
 import string 
 import random 
 
@@ -6,6 +8,8 @@ from fastapi.testclient import TestClient
 from server.lighthouse import app
 
 client = TestClient(app)
+
+_agent_secrets = {}
 
 def get_headers_helper():
     headers = {
@@ -49,19 +53,39 @@ def gen_fake_host_data(length: int):
     return random_data
 
 def gen_fake_session_name():
-    chars = string.hexdigits
-    random_data = ''.join(random.choices(chars, k=8))
-    return random_data
+    return secrets.token_hex(16)
+
+
+def get_agent_headers_helper(session: str):
+    secret = _agent_secrets[session]
+    return {"Authorization": f"Agent {session}:{secret}"}
 
 def generate_fake_session():
+    session = gen_fake_session_name()
+    secret = secrets.token_hex(32)
+    provision_response = client.post(
+        "/provision/",
+        headers=get_token_headers_helper(),
+        json={
+            "id": session,
+            "credential_hash": hashlib.sha256(secret.encode("ascii")).hexdigest(),
+        },
+    )
+    assert provision_response.status_code == 201
+    _agent_secrets[session] = secret
+
     data = {
-        "session": gen_fake_session_name(),
+        "session": session,
         "hostname": gen_fake_host_data(8),
         "username": gen_fake_host_data(5),
         "callback_freq": 1,
         "jitter": 15,
     }
-    response = client.post("/implants/", json=data)
+    response = client.post(
+        "/implants/",
+        headers=get_agent_headers_helper(session),
+        json=data,
+    )
     return response
 
 def create_user_helper():

@@ -9,6 +9,7 @@ import uvicorn
 from fastapi import FastAPI
 
 from server.server_helper.lighthouse_config import parse_config, parse_config_vals
+from server.server_helper.db import Base, engine
 
 from server.routes.user_routes import router as user_router
 from server.routes.health_routes import router as health_router
@@ -17,6 +18,10 @@ from server.routes.implant_routes import router as implant_router
 from server.routes.task_routes import router as task_router
 from server.routes.tasking_routes import router as tasking_router
 from server.routes.token_routes import router as token_router
+from server.routes.provision_routes import router as provision_router
+
+# Route imports register all SQLAlchemy models before missing tables are created.
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
@@ -27,6 +32,7 @@ app.include_router(implant_router)
 app.include_router(task_router)
 app.include_router(tasking_router)
 app.include_router(token_router)
+app.include_router(provision_router)
 
 if __name__ == '__main__':
     opts = argparse.ArgumentParser(description="light_house server application")

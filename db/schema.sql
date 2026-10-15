@@ -12,6 +12,14 @@ CREATE TABLE implants (
     hostname TEXT
 );
 
+CREATE TABLE provision (
+    id TEXT PRIMARY KEY,
+    credential_hash TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'provisioned',
+    created_at TEXT NOT NULL,
+    activated_at TEXT NOT NULL
+);
+
 CREATE TABLE tasking (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     session TEXT NOT NULL,

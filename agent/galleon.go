@@ -62,6 +62,14 @@ func TaskHandler(taskData map[string]interface{}, url string) {
 func main() {
 
 	os.Clearenv()
+
+	if agent_config.AgentId == "" || agent_config.AgentSecret == "" || agent_config.ServerCertSHA256 == "" {
+		if debug.Debug {
+			fmt.Println("[!] AgentId, AgentSecret, or ServerCertSHA256 not set")
+		}
+		os.Exit(1)
+	}
+
 	retryCounter := 0
 	if debug.Debug {
 		fmt.Println("[*] Starting Galleon Agent")

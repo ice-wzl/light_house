@@ -3,7 +3,7 @@ package agent_config
 import "sync"
 
 // Where the agent will call back
-const ServerUrl = "https://localhost:8000"
+var ServerUrl = ""
 
 // Value in minutes between callback
 var CallbackVal = 1
@@ -19,6 +19,12 @@ var StartDelayVal = 5
 
 // Amount of seconds to sleep between initial checkin attempts
 var RetryTimerVal = 60
+
+// Set by build_agent.py through go build -ldflags -X
+// Used to authenticate the agent to the server
+var AgentId = ""
+var AgentSecret = ""
+var ServerCertSHA256 = ""
 
 var ReqHeaders = map[string]string{
 	"Content-Type":               "application/json",

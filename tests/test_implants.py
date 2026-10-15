@@ -8,6 +8,7 @@ from tests.helper_functions import get_token_headers_helper
 from tests.helper_functions import get_response_helper
 from tests.helper_functions import generate_fake_session
 from tests.helper_functions import gen_fake_host_data
+from tests.helper_functions import get_agent_headers_helper
 
 client = TestClient(app)
 
@@ -27,10 +28,15 @@ def test_agent_checkin_missing_id():
         "callback_freq": 1,
         "jitter": 15,
     }
-    response = client.post("/implants/", json=data)
+    valid_agent = generate_fake_session().json()["session"]
+    response = client.post(
+        "/implants/",
+        headers=get_agent_headers_helper(valid_agent),
+        json=data,
+    )
     get_response_helper(response)
-    assert response.status_code == 400
-    assert response.json()["detail"] == "Invalid session id"
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Agent cannot use this session"
 
 def test_get_implants_req():
     print(f"Testing: test_Get_implants_req()")

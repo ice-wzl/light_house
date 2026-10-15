@@ -3,7 +3,7 @@ import hashlib
 import string
 import random
 from datetime import datetime, timezone
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy import Column, Integer, String
 
 # local imports
@@ -30,8 +30,7 @@ class UserRead(BaseModel):
     username: str
     created_at: str
 
-    class Config:
-        form_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UserDelete(BaseModel):

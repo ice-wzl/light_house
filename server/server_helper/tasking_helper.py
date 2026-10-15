@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import Optional
 from sqlalchemy import Column, Integer, String, ForeignKey
 from sqlalchemy.orm import relationship
@@ -32,8 +32,7 @@ class TaskingCreate(BaseModel):
 class TaskingRead(TaskingCreate):
     id: int
 
-    class Config:
-        form_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class TaskingDelete(BaseModel):

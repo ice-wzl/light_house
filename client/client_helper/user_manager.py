@@ -1,9 +1,12 @@
 #!/user/bin/python3
 import httpx
-import sys
 import datetime
 from prompt_toolkit import print_formatted_text
 from prettytable import PrettyTable
+
+
+class AuthenticationError(RuntimeError):
+    pass
 
 
 def fix_date(raw_date: str) -> str:
@@ -161,7 +164,7 @@ def authenticate(username: str, password: str, server: str) -> str:
     :param username: The username to authenticate with
     :param password: The password to authenticate with
     :param server: The lighthouse server address
-    :return: The access token if authentication is successful, otherwise exits the program
+    :return: The access token if authentication is successful
     """
     url = f"https://{server}/token/"
     headers = {
@@ -178,20 +181,24 @@ def authenticate(username: str, password: str, server: str) -> str:
     }
 
     try:
-        response = httpx.post(url, headers=headers, data=data, verify=False)
+        response = httpx.post(
+            url,
+            headers=headers,
+            data=data,
+            verify=False,
+            timeout=10,
+        )
 
         if response.status_code == 200:
             response_data = response.json()
-            token = response_data["access_token"]
-            with open(".auth-token", "w") as fp:
-                fp.write(token)
+            token = response_data.get("access_token")
+            if not isinstance(token, str) or not token:
+                raise AuthenticationError("Lighthouse returned no access token")
             return token
-        elif response.status_code == 401:
-            print_formatted_text("[*] Invalid credentials")
-            sys.exit(1)
-        else:
-            print_formatted_text(response.status_code, response.text, response)
-            return ""
-    except httpx.ConnectError as e:
-        print_formatted_text("[-] Connection Refused to Lighthouse")
-        sys.exit(1)
+        if response.status_code == 401:
+            raise AuthenticationError("Invalid credentials")
+        raise AuthenticationError(
+            f"Authentication failed with HTTP {response.status_code}: {response.text}"
+        )
+    except httpx.HTTPError as exc:
+        raise AuthenticationError(f"Unable to connect to Lighthouse: {exc}") from exc

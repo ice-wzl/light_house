@@ -21,7 +21,7 @@ func SetupSignalHandler() chan os.Signal {
 func SendDeathMessage(serverAddr string, session string) (int, error) {
 	url := fmt.Sprintf("%s/health/d/%s", serverAddr, session)
 
-	resp, err := CustomClient.Get(url)
+	resp, err := AgentGet(CustomClient, url)
 	if err != nil {
 		return 0, err
 	}

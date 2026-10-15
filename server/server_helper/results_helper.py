@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import Optional
 from sqlalchemy import Column, Integer, String, ForeignKey
 from sqlalchemy.orm import relationship
@@ -36,15 +36,13 @@ class ResultsCreds(BaseModel):
     date: str
     results: str
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 # only client ensure auth
 class ResultsRead(ResultsCreate):
     id: int
 
-    class Config:
-        form_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # only client ensure auth

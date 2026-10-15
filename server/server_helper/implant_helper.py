@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import Optional
 from sqlalchemy import Column, Integer, String, Boolean, Text
 
@@ -34,5 +34,4 @@ class ImplantCreate(BaseModel):
 class ImplantRead(ImplantCreate):
     id: int
 
-    class Config:
-        form_attributes = True
+    model_config = ConfigDict(from_attributes=True)

@@ -4,9 +4,9 @@ from httpx import codes
 from fastapi.testclient import TestClient
 from server.lighthouse import app
 
-from tests.helper_functions import get_token_headers_helper
 from tests.helper_functions import get_response_helper
 from tests.helper_functions import generate_fake_session
+from tests.helper_functions import get_agent_headers_helper
 
 client = TestClient(app)
 
@@ -15,22 +15,33 @@ def test_health_checkin():
     fake = generate_fake_session()
     implant_session_name = fake.json()["session"]
     implant_last_checkin = fake.json()["last_checkin"]
-    response = client.get(f"/health/{implant_session_name}", headers=get_token_headers_helper())
+    response = client.get(
+        f"/health/{implant_session_name}",
+        headers=get_agent_headers_helper(implant_session_name),
+    )
     get_response_helper(response)
     assert response.json()["session"] == implant_session_name
     assert response.json()["last_checkin"] != implant_last_checkin
 
 def test_health_checkin_not_found():
     print(f"Testing: test_health_checkin_not_found()")
-    response = client.get(f"/health/aaaaaa", headers=get_token_headers_helper())
+    session = generate_fake_session().json()["session"]
+    response = client.get(
+        f"/health/{'a' * 32}",
+        headers=get_agent_headers_helper(session),
+    )
     get_response_helper(response)
-    assert response.status_code == 404
+    assert response.status_code == 403
 
 def test_health_implant_death_req_not_found():
     print(f"Testing: test_health_implant_death_req()")
-    response = client.get(f"/health/d/aaaaaa", headers=get_token_headers_helper())
+    session = generate_fake_session().json()["session"]
+    response = client.get(
+        f"/health/d/{'a' * 32}",
+        headers=get_agent_headers_helper(session),
+    )
     get_response_helper(response)
-    assert response.status_code == 404
+    assert response.status_code == 403
 
 def test_health_implant_death_req():
     print(f"Testing: test_health_implant_death_req()")
@@ -38,6 +49,9 @@ def test_health_implant_death_req():
     implant_to_kill_session = implant_to_kill.json()["session"]
     implant_to_kill_alive = implant_to_kill.json()["alive"]
     assert implant_to_kill_alive == True
-    response = client.get(f"/health/d/{implant_to_kill_session}", headers=get_token_headers_helper())
+    response = client.get(
+        f"/health/d/{implant_to_kill_session}",
+        headers=get_agent_headers_helper(implant_to_kill_session),
+    )
     get_response_helper(response)
     assert response.status_code == 200

@@ -1,10 +1,9 @@
 import argparse
+import getpass
 import logging
 import shlex
 import sys
-import threading
 from pathlib import Path
-from time import sleep
 
 # Add project root to path for running from project root: python client/merchant.py
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -16,14 +15,21 @@ from prompt_toolkit import print_formatted_text
 
 # local imports
 from client.client_helper.user_manager import (
+    AuthenticationError,
     user_add,
     user_delete,
     get_users,
     get_user,
-    authenticate,
 )
+from client.client_helper.auth_manager import InMemoryAuthManager
 from client.client_helper.session_manager import get_sessions, test_session, interact_implant
 from client.client_helper.tasking_manager import get_tasking
+from agent.build_agent import (
+    ARCHS,
+    DEFAULT_CERT_PATH,
+    build_dir_setup,
+    build_galleon,
+)
 
 # currently not using this logger, keeping for future use
 log_format = "%(asctime)s - %(message)s"
@@ -52,12 +58,20 @@ completer_server = WordCompleter(
         "user_delete",
         "tasking",
         "interact",
+        "agent_build",
         "quit",
     ]
 )
 
 
-def command_router(cmd: str, args: list, server: str) -> None:
+def command_router(
+    cmd: str,
+    args: list,
+    auth_manager: InMemoryAuthManager,
+    server: str,
+    certificate: str,
+    insecure_build_provisioning: bool,
+) -> None:
     """
     Routes commands to their respective handlers based on the command name
     :param cmd: The command to execute
@@ -66,8 +80,7 @@ def command_router(cmd: str, args: list, server: str) -> None:
     :param server: The lighthouse server address
     :return: None
     """
-    with open(".auth-token", "r") as fp:
-        token = fp.read()
+    token = auth_manager.get_token()
 
     match cmd:
         case "sessions":
@@ -87,6 +100,14 @@ def command_router(cmd: str, args: list, server: str) -> None:
             handle_interact(args, token, server)                
         case "tasking":
             handle_tasking(args, token, server)
+        case "agent_build":
+            handle_agent_build(
+                args,
+                token,
+                server,
+                certificate,
+                insecure_build_provisioning,
+            )
 
 
 def handle_user_delete(args: list, token: str, server: str):
@@ -136,15 +157,45 @@ def handle_tasking(args: list, token: str, server: str):
         print_formatted_text("[*] Expecting session id -> tasking <session-id>")
 
 
-def auth_timer(seconds: int, username: str, password: str, server: str):
-    sleep(seconds - 120)
-    token = authenticate(username, password, server)
-    with open(".auth-token", "w") as fp:
-        fp.write(token)
-    auth_timer(seconds, username, password, server)
+def handle_agent_build(
+    args: list,
+    token: str,
+    server: str,
+    certificate: str,
+    insecure_build_provisioning: bool,
+):
+    if not args or len(args) > 2 or args[0] not in ARCHS:
+        print_formatted_text(
+            "[*] Expecting agent_build <architecture> [debug]"
+        )
+        return
+
+    debug = len(args) == 2 and args[1].lower() == "debug"
+    if len(args) == 2 and not debug:
+        print_formatted_text("[*] Optional second argument must be 'debug'")
+        return
+
+    try:
+        build_dir_setup()
+        build_galleon(
+            args[0],
+            debug,
+            f"https://{server}",
+            token,
+            certificate,
+            insecure_build_provisioning,
+        )
+    except Exception as exc:
+        print_formatted_text(f"[-] Agent build failed: {exc}")
 
 
-def driver(username: str, password: str, server: str):
+def driver(
+    username: str,
+    password: str,
+    server: str,
+    certificate: str,
+    insecure_build_provisioning: bool,
+):
     """
     Main driver to handle the user input and pass to the command router
     :param username: The username to authenticate to lighthouse with
@@ -152,30 +203,56 @@ def driver(username: str, password: str, server: str):
     :param server: The lighthouse server address
     :return: None
     """
-    token = authenticate(username, password, server)
-    timer_thread = threading.Thread(target=auth_timer, args=(1800,username, password, server,), daemon=True)
-    timer_thread.start()
+    auth_manager = InMemoryAuthManager(
+        username,
+        password,
+        server,
+        on_refresh_error=lambda exc: print_formatted_text(
+            f"[-] Token refresh failed; retrying automatically: {exc}"
+        ),
+    )
+    try:
+        auth_manager.start()
+    except (AuthenticationError, RuntimeError) as exc:
+        auth_manager.stop()
+        print_formatted_text(f"[-] {exc}")
+        return
 
     session = PromptSession()
     print_formatted_text("[+] Enter <tab> to see available commands")
 
-    while True:
-        options = session.prompt(
-            message=message_server, style=style_server, completer=completer_server
-        )
+    try:
+        while True:
+            options = session.prompt(
+                message=message_server, style=style_server, completer=completer_server
+            )
 
-        try:
-            parsed = shlex.split(options)
-        except ValueError as e:
-            print_formatted_text(f"[*] Input parsing error: {e}")
-            continue
+            try:
+                parsed = shlex.split(options)
+            except ValueError as e:
+                print_formatted_text(f"[*] Input parsing error: {e}")
+                continue
 
-        if not parsed:
-            continue
+            if not parsed:
+                continue
 
-        cmd = parsed[0].lower()
-        args = parsed[1:]
-        command_router(cmd, args, server)
+            cmd = parsed[0].lower()
+            args = parsed[1:]
+            try:
+                command_router(
+                    cmd,
+                    args,
+                    auth_manager,
+                    server,
+                    certificate,
+                    insecure_build_provisioning,
+                )
+            except (AuthenticationError, RuntimeError) as exc:
+                print_formatted_text(f"[-] Authentication failed: {exc}")
+    except (EOFError, KeyboardInterrupt):
+        print_formatted_text("\n[*] Goodbye...")
+    finally:
+        auth_manager.stop()
 
 
 if __name__ == "__main__":
@@ -191,9 +268,9 @@ if __name__ == "__main__":
     options.add_argument(
         "-p",
         "--password",
-        default=str,
-        required=True,
-        help="The password to authenticate with",
+        default=None,
+        required=False,
+        help="The password to authenticate with; omitted values are prompted",
         dest="password",
     )
     options.add_argument(
@@ -204,6 +281,25 @@ if __name__ == "__main__":
         help="The listening post address",
         dest="server",
     )
+    options.add_argument(
+        "--certificate",
+        default=str(DEFAULT_CERT_PATH),
+        help="Lighthouse certificate used when provisioning agent builds",
+        dest="certificate",
+    )
+    options.add_argument(
+        "--insecure-build-provisioning",
+        action="store_true",
+        help="disable TLS verification only for build-time provisioning",
+        dest="insecure_build_provisioning",
+    )
     args = options.parse_args()
 
-    driver(args.username, args.password, args.server)
+    password = args.password or getpass.getpass("Lighthouse password: ")
+    driver(
+        args.username,
+        password,
+        args.server,
+        args.certificate,
+        args.insecure_build_provisioning,
+    )
