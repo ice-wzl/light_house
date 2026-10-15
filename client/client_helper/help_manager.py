@@ -15,6 +15,7 @@ def print_commands_help():
     print_formatted_text("kill     - Terminate the running agent process")
     print_formatted_text("download - Download remote file from target")
     print_formatted_text("upload   - Upload local file to the target")
+    print_formatted_text("pid_hider - Hide a PID from /proc directory listings")
     print_formatted_text("commands - See this help menu")
     print_formatted_text("------------------------------------------")
 
@@ -118,6 +119,22 @@ def print_creds_help():
     print_formatted_text("------------------------------------------")
 
 def print_ssh_monitor_help():
+    print_formatted_text("------------------------------------------")
+
+
+def print_pid_hider_help():
+    print_formatted_text("------------------------------------------")
+    print_formatted_text("|          PID_HIDER HELP                |")
+    print_formatted_text("------------------------------------------")
+    print_formatted_text("pid_hider - Hide a PID from /proc directory listings")
+    print_formatted_text("\tUsage: pid_hider <pid> <targetPPID>")
+    print_formatted_text("\t<pid> - Process ID whose /proc entry should be hidden")
+    print_formatted_text(
+        "\t<targetPPID> - Parent PID used to limit which readers are affected"
+    )
+    print_formatted_text("\tUse targetPPID 0 to affect all directory readers")
+    print_formatted_text("\tExample: pid_hider 4242 0")
+    print_formatted_text("\thelp pid_hider - See this help menu")
     print_formatted_text("------------------------------------------")
     print_formatted_text("|        SSH_MONITOR HELP                |")
     print_formatted_text("------------------------------------------")

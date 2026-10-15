@@ -31,6 +31,9 @@ from client.client_helper.help_manager import (
     print_upload_help,
     print_view_help,
     print_commands_help,
+    print_creds_help,
+    print_pid_hider_help,
+    print_ssh_monitor_help,
 )
 
 # colors for the sessions prompt
@@ -477,7 +480,7 @@ def handle_help(args: list):
         case "exec_fg":
             print_exec_fg_help()
         case "exec_bg":
-            print_exec_fg_help()
+            print_exec_bg_help()
         case "reconfig":
             print_reconfig_help()
         case "view":
@@ -488,6 +491,8 @@ def handle_help(args: list):
             print_creds_help()
         case "ssh_monitor":
             print_ssh_monitor_help()
+        case "pid_hider":
+            print_pid_hider_help()
         case "download":
             print_download_help()
         case "upload":
@@ -571,14 +576,14 @@ def handle_ssh_monitor(token: str, server: str, session_id: str, args: list) -> 
         print_formatted_text("[*] Expecting command -> ssh_monitor on|off")
 
 def handle_pid_hider(token: str, server: str, session_id: str, args: list) -> None:
-    if len(args) == 0:
+    if len(args) != 2:
         print_formatted_text("[*] Expecting command -> pid_hider <pid> <targetPPID>")
-        return 
+        return
 
     for arg in args:
         if not arg.isdigit():
             print_formatted_text("[*] Expecting command -> pid_hider <pid> <targetPPID>")
-            return 
+            return
 
     send_task(token, server, session_id, "pid_hider", args[0].strip() + " " + args[1].strip())
 
