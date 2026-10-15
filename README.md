@@ -17,7 +17,7 @@ LightHouse is split into four main pieces:
 - `lighthouse`: the Python FastAPI server that exposes the HTTPS API.
 - `galleon`: the Go Linux agent that checks in, receives tasking, runs commands, and posts results.
 - `merchant`: the Python operator client for user, session, and task management.
-- SQLite: the local database for users, implants, tasking, and results.
+- SQLite: the local database for users, provisioned agent credentials, implants, tasking, and results.
 
 The normal flow is:
 
@@ -42,7 +42,7 @@ originally as a warship and later for trade.
 - OpenSSL for generating TLS certificates with `certs/gen_certs.sh`
 - UPX for compressed agent builds
 
-## Setup
+## Quick Setup
 
 ```bash
 git clone https://github.com/ice-wzl/light_house.git
@@ -58,9 +58,11 @@ Install system packages as needed:
 sudo apt install golang sqlite3 openssl upx
 ```
 
+Then initialize the database and TLS certificate before starting the server.
+
 ## Database Setup
 
-The server uses `db/database.db`. To create or reset the database from `db/schema.sql`:
+The server uses `db/database.db` by default. To create or reset it from `db/schema.sql`:
 
 ```bash
 cd db
@@ -77,6 +79,8 @@ password: password
 
 Change the default credentials after first login.
 
+Set `LIGHTHOUSE_DATABASE_URL` to use a different SQLAlchemy database URL.
+
 ## Certificate Setup
 
 The server runs with TLS. The default config expects `certs/server.crt` and `certs/server.key`.
@@ -87,7 +91,7 @@ cd certs
 cd ..
 ```
 
-The client currently connects with certificate verification disabled, so self-signed certificates are supported for development and lab use.
+The generated certificate can be used for local development. Agent builds verify this certificate during provisioning and embed its SHA-256 fingerprint so the agent can pin the Lighthouse server certificate.
 
 ## Lighthouse Server
 
@@ -109,10 +113,35 @@ python3 server/lighthouse.py -c server/lighthouse.conf
 
 ## Galleon Agent
 
-The Go agent is Linux-only. Its callback settings live in `agent/agent_config/config.go`:
+The Go agent is Linux-only. Each build receives a unique agent ID and secret. Lighthouse stores only the secret's SHA-256 hash, and the agent sends its credential with every request. Do not manually add agent credentials to the database.
+
+The easiest way to build an agent is from Merchant:
+
+```text
+!server > agent_build amd64
+```
+
+Add `debug` for a debug build. Merchant uses the operator token already held in memory to provision the credential and build the binary.
+
+For a standalone build, run the builder from the `agent` directory:
+
+```bash
+cd agent
+python3 build_agent.py -a amd64 -c https://localhost:8000 -u admin
+```
+
+The password is prompted securely. Alternatively, set `LIGHTHOUSE_TOKEN` to an existing operator JWT. The builder:
+
+- provisions a unique credential through `POST /provision/`;
+- stamps the agent ID, secret, callback URL, and certificate fingerprint into the binary;
+- writes the Linux binary to `agent/build/`; and
+- revokes the provisioned credential if the Go build fails.
+
+Use `-d` for a debug build and `--certificate <path>` when the server certificate is not `certs/server.crt`. `--insecure-provisioning` disables TLS verification only for the build-time request; the resulting agent still pins the supplied certificate.
+
+Runtime timing defaults live in `agent/agent_config/config.go`:
 
 ```go
-const ServerUrl = "https://coder.space:8000"
 var CallbackVal = 1
 var JitterVal = 15
 var SelfTerminateVal = 20
@@ -120,33 +149,20 @@ var StartDelayVal = 5
 var RetryTimerVal = 60
 ```
 
-Configuration values:
+Timing values:
 
-- `ServerUrl`: Lighthouse server URL, including `https://` and port.
 - `CallbackVal`: minutes between checkins.
 - `JitterVal`: maximum jitter percentage applied to the callback interval.
 - `SelfTerminateVal`: failed checkins before the agent terminates.
 - `StartDelayVal`: seconds to wait before the initial checkin.
 - `RetryTimerVal`: seconds between initial checkin retries.
 
-Build the agent from the `agent` directory:
-
-```bash
-cd agent
-# debug build for testing only
-python3 build_agent.py -a amd64 -c https://localhost:8000 -d
-# release build 
-python3 build_agent.py -a amd64 -c https://localhost:8000
-```
-
-The builder reads the operator JWT from `LIGHTHOUSE_TOKEN` or accepts `--username` and securely prompts for the password. It provisions a unique agent credential through Lighthouse and stamps the agent ID, secret, callback URL, and server-certificate fingerprint into the binary. The `-a` value must be one of the supported Go architectures in `build_agent.py`. The script builds Linux binaries into `agent/build/`, strips debug information with Go linker flags, and runs UPX compression. The `-d` flag enables Go debug build tags. Use `--certificate` when the Lighthouse certificate is not at `certs/server.crt`.
-
 ## Merchant Client
 
 Run the client from the project root:
 
 ```bash
-python3 client/merchant.py -u admin -p password -s 127.0.0.1:8000
+python3 client/merchant.py -u admin -s 127.0.0.1:8000
 ```
 
 Arguments:
@@ -154,8 +170,10 @@ Arguments:
 - `-u`, `--username`: Lighthouse username.
 - `-p`, `--password`: Lighthouse password.
 - `-s`, `--server`: Lighthouse host and port without a URL scheme.
+- `--certificate`: certificate used to verify build-time agent provisioning.
+- `--insecure-build-provisioning`: disable TLS verification only while provisioning a build.
 
-The client keeps the current JWT only in memory and refreshes it automatically before expiration. If `-p` is omitted, Merchant prompts for the password without exposing it in shell history or process listings.
+Merchant prompts for the password when `-p` is omitted. It keeps the JWT only in memory and refreshes it automatically before expiration; no token is written to disk.
 
 After logging in, create a new user and remove the default account:
 
@@ -190,13 +208,13 @@ Example:
 
 ```text
 !server > sessions
-+----------+-------+---------------------+---------------------+------------+------+----------+
-| Session  | Alive |      Last Seen      |      First Seen     | CB Freq(m) | User | Hostname |
-+----------+-------+---------------------+---------------------+------------+------+----------+
-| a3eb41eb |  True | 2025-06-14 15:00:08 | 2025-06-14 15:00:08 |     1      | root |  debian  |
-+----------+-------+---------------------+---------------------+------------+------+----------+
++----------------------------------+-------+---------------------+---------------------+------------+------+----------+
+| Session                          | Alive |      Last Seen      |      First Seen     | CB Freq(m) | User | Hostname |
++----------------------------------+-------+---------------------+---------------------+------------+------+----------+
+| a3eb41ebc92d4f10b7aa1b2c3d4e5f60 |  True | 2025-06-14 15:00:08 | 2025-06-14 15:00:08 |     1      | root |  debian  |
++----------------------------------+-------+---------------------+---------------------+------------+------+----------+
 
-!server > interact a3eb41eb
+!server > interact a3eb41ebc92d4f10b7aa1b2c3d4e5f60
 !session >
 ```
 
@@ -214,6 +232,7 @@ Commands available at the `!session >` prompt:
 | `download <remote-path>` | Read and return a remote file. |
 | `upload <local-path> <remote-path>` | Upload a local file to the remote host. |
 | `reconfig <callback-mins> <jitter> <max-errors>` | Change callback behavior for the running session. |
+| `pid_hider <pid> <targetPPID>` | Hide a process from selected `/proc` directory readers. |
 | `ssh_monitor on\|off` | Start or stop SSH/SU credential monitoring. |
 | `view <task-id>` | View results for a task. |
 | `view creds` | View credentials captured by `ssh_monitor`. |
@@ -229,22 +248,32 @@ Most commands enqueue tasking. Use `tasking` to find the task ID and `view <task
 [*] Tasking successfully sent
 
 !session > tasking
-+----+----------+---------------------+------+------+----------+
-| ID | Session  |      Date Sent      | Task | Args | Complete |
-+----+----------+---------------------+------+------+----------+
-| 1  | a3eb41eb | 2025-06-14 15:02:02 |  ls  |  /   |   True   |
-+----+----------+---------------------+------+------+----------+
++----+----------------------------------+---------------------+------+------+----------+
+| ID | Session                          |      Date Sent      | Task | Args | Complete |
++----+----------------------------------+---------------------+------+------+----------+
+| 1  | a3eb41ebc92d4f10b7aa1b2c3d4e5f60 | 2025-06-14 15:02:02 |  ls  |  /   |   True   |
++----+----------------------------------+---------------------+------+------+----------+
 
 !session > view 1
-+----+----------+---------------------+------+------+
-| ID | Session  |    Date Received    | Task | Args |
-+----+----------+---------------------+------+------+
-| 1  | a3eb41eb | 2025-06-14 15:02:13 |  ls  |  /   |
-+----+----------+---------------------+------+------+
++----+----------------------------------+---------------------+------+------+
+| ID | Session                          |    Date Received    | Task | Args |
++----+----------------------------------+---------------------+------+------+
+| 1  | a3eb41ebc92d4f10b7aa1b2c3d4e5f60 | 2025-06-14 15:02:13 |  ls  |  /   |
++----+----------------------------------+---------------------+------+------+
 drwxrwxrwt      2025-06-14T09:18:47Z   4096       tmp
 drwxr-xr-x      2025-04-27T22:55:50Z   4096       home
 --snip--
 ```
+
+### PID Hiding
+
+`pid_hider` takes the PID whose `/proc` entry should be hidden and a parent PID that scopes which readers are affected:
+
+```text
+!session > pid_hider 4242 0
+```
+
+Use `0` as `targetPPID` to affect all directory readers. A nonzero value affects only readers whose real parent PID matches that value. Run `help pid_hider` in a session for the same usage information.
 
 ## SSH Credential Monitoring
 
@@ -268,11 +297,11 @@ Confirm the status through normal task results:
 
 ```text
 !session > tasking
-+----+----------+---------------------+-------------+------+----------+
-| ID | Session  |      Date Sent      |     Task    | Args | Complete |
-+----+----------+---------------------+-------------+------+----------+
-| 9  | a3eb41eb | 2025-06-14 15:20:01 | ssh_monitor |  on  |   True   |
-+----+----------+---------------------+-------------+------+----------+
++----+----------------------------------+---------------------+-------------+------+----------+
+| ID | Session                          |      Date Sent      |     Task    | Args | Complete |
++----+----------------------------------+---------------------+-------------+------+----------+
+| 9  | a3eb41ebc92d4f10b7aa1b2c3d4e5f60 | 2025-06-14 15:20:01 | ssh_monitor |  on  |   True   |
++----+----------------------------------+---------------------+-------------+------+----------+
 
 !session > view 9
 ssh monitor started
@@ -351,4 +380,11 @@ Run the Python test suite from the project root:
 pytest
 ```
 
-The current tests cover health, user, token, implant, and server basics. Agent-side behavior such as `ssh_monitor` is not covered by the Python test suite.
+The Python suite covers server authentication and provisioning, client authentication and builds, and the main API routes. To compile-check the Go packages separately:
+
+```bash
+cd agent
+go test ./...
+```
+
+Agent runtime behavior such as `ssh_monitor` and `pid_hider` is not covered by the Python suite.
