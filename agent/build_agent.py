@@ -149,6 +149,7 @@ def build_galleon(
     debug: bool,
     server_url: str,
     token: str,
+    sleep_time: int, 
     certificate_path: str | Path = DEFAULT_CERT_PATH,
     insecure_provisioning: bool = False,
 ) -> bool:
@@ -191,6 +192,7 @@ def build_galleon(
             f"-X=galleon/agent_config.AgentId={agent_id}",
             f"-X=galleon/agent_config.AgentSecret={agent_secret}",
             f"-X=galleon/agent_config.ServerUrl={server_url}",
+            f"-X=galleon/agent_config.CallbackValRaw={sleep_time}",
             f"-X=galleon/agent_config.ServerCertSHA256={fingerprint}",
         ]
     )
@@ -282,6 +284,13 @@ if __name__ == "__main__":
         required=True,
         help="HTTPS Lighthouse URL, for example https://localhost:8000",
     )
+    opts.add_argument(
+        "-s",
+        "--sleep_time",
+        required=True,
+        type=int,
+        help="Time in second to sleep between each agent callback",
+    )
     opts.add_argument("-d", "--debug", action="store_true")
     opts.add_argument(
         "--certificate",
@@ -314,6 +323,7 @@ if __name__ == "__main__":
             args.debug,
             args.callback,
             operator_token,
+            args.sleep_time,
             args.certificate,
             args.insecure_provisioning,
         )

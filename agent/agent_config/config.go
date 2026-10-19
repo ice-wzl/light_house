@@ -1,12 +1,24 @@
 package agent_config
 
-import "sync"
+import (
+	"strconv"
+	"sync"
+)
 
 // Where the agent will call back
 var ServerUrl = ""
 
-// Value in minutes between callback
-var CallbackVal = 1
+// Value in minutes between callback set with build_agent.py 
+var CallbackValRaw = ""
+var CallbackVal int
+
+func init() {
+	var err error
+	CallbackVal, err = strconv.Atoi(CallbackValRaw)
+	if err != nil {
+		CallbackVal = 1
+	}
+}
 
 // Percent of the callback value to vary callback time
 var JitterVal = 15

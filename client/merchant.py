@@ -164,24 +164,29 @@ def handle_agent_build(
     certificate: str,
     insecure_build_provisioning: bool,
 ):
-    if not args or len(args) > 2 or args[0] not in ARCHS:
+    if not args or len(args) > 4 or args[0] not in ARCHS:
         print_formatted_text(
-            "[*] Expecting agent_build <architecture> [debug]"
+            "[*] Expecting agent_build <architecture> <callback host> <callback minutes> [debug]"
         )
         return
 
-    debug = len(args) == 2 and args[1].lower() == "debug"
-    if len(args) == 2 and not debug:
-        print_formatted_text("[*] Optional second argument must be 'debug'")
+    if len(args) == 3 and not args[2].isdigit():
+        print_formatted_text("[*] Third argument must be an integer for callback minutes")
+        return
+
+    debug = len(args) == 4 and args[3].lower() == "debug"
+    if len(args) == 4 and not debug:
+        print_formatted_text("[*] Optional fourth argument must be 'debug'")
         return
 
     try:
         build_dir_setup()
         build_galleon(
-            args[0],
-            debug,
-            f"https://{server}",
+            args[0], # arch
+            debug,   # bool 
+            args[1], # callback host
             token,
+            args[2], # callback minutes
             certificate,
             insecure_build_provisioning,
         )

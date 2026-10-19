@@ -16,3 +16,5 @@ server/__pycache__/*
 server/routes/__pycache__/*
 server/server_helper/__pycache__/*
 todo.txt
+certs/server.crt
+certs/server.key
